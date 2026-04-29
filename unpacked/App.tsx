@@ -424,9 +424,154 @@ const Page = ({selected, onSelect}) => {
   );
 };
 
+/* ── EXPORT TREND CHART (interactive, real data from agrstat.moa.gov.tw) ───
+ * Replaces the static "外銷趨勢圖" cell in the dashboard image with a
+ * Chart.js bar+line chart. Data lives in window.DATASETS.tomato_export
+ * (parsed from the ODS export of 蕃茄,生鮮冷藏 1989-01 to 2026-03).
+ */
+const COUNTRY_OPTIONS = ['全球','APEC','CPTPP(12)','CPTPP','東協六國','歐盟','新南向國家','TPP','區域全面經濟夥伴關係協定'];
+
+const ExportTrendChart = () => {
+  const data = window.DATASETS && window.DATASETS.tomato_export;
+  const [country, setCountry] = useState('全球');
+  const [period, setPeriod] = useState('yearly');
+  const canvasRef = React.useRef(null);
+  const chartRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!data || !window.Chart || !canvasRef.current) return;
+    const cd = data.data[country];
+    if (!cd) return;
+    const series = period === 'yearly' ? cd.yearly : cd.monthly;
+
+    // For monthly, only show last ~60 months so labels stay legible.
+    let entries = Object.entries(series);
+    if (period === 'monthly') entries = entries.slice(-60);
+
+    const labels = entries.map(([k]) => k);
+    const weights = entries.map(([,v]) => v?.w ?? null);
+    const avgPrices = entries.map(([,v]) =>
+      (v?.w && v?.v) ? Math.round(v.v * 1000 / v.w) : null);
+
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new window.Chart(canvasRef.current, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '出口量 (公噸)',
+            data: weights,
+            backgroundColor: 'rgba(180,196,236,0.85)',
+            borderColor: 'rgba(140,156,210,1)',
+            borderWidth: 1,
+            yAxisID: 'y1',
+            order: 2,
+          },
+          {
+            label: '均價 (NTD/公噸)',
+            data: avgPrices,
+            type: 'line',
+            borderColor: '#7560d4',
+            backgroundColor: '#7560d4',
+            yAxisID: 'y2',
+            tension: 0.25,
+            pointRadius: period==='yearly' ? 4 : 1.5,
+            pointHoverRadius: 6,
+            borderWidth: 2.5,
+            order: 1,
+            spanGaps: true,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 14 } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const v = ctx.raw;
+                if (v == null) return ctx.dataset.label + ': —';
+                const fmt = v.toLocaleString('zh-TW');
+                return ctx.dataset.label + ': ' + fmt;
+              },
+            },
+          },
+        },
+        scales: {
+          x: { ticks: { font: { size: 10 }, maxRotation: 60, autoSkip: true, maxTicksLimit: period==='yearly' ? 12 : 14 } },
+          y1: { position:'left',  title:{display:true,text:'出口量 (公噸)',font:{size:10}}, ticks:{font:{size:10}} },
+          y2: { position:'right', title:{display:true,text:'均價 (NTD/公噸)',font:{size:10}}, ticks:{font:{size:10}}, grid:{drawOnChartArea:false} },
+        },
+      },
+    });
+    return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+  }, [country, period, data]);
+
+  if (!data) {
+    return <div style={{padding:20,color:'#888',fontSize:12}}>資料未載入</div>;
+  }
+
+  // Card position over the dashboard image (1440×1468 design canvas).
+  // Card edges: x=22-695, y=920-1250.
+  return (
+    <div style={{
+      position:'absolute',
+      left: `${22/1440*100}%`,
+      top:  `${920/1468*100}%`,
+      width: `${(695-22)/1440*100}%`,
+      height:`${(1250-920)/1468*100}%`,
+      background:'#f0eefb',
+      border:'1.5px solid #d6cff0',
+      borderRadius:14,
+      padding:'10px 14px',
+      boxSizing:'border-box',
+      display:'flex', flexDirection:'column',
+      fontFamily:"'Noto Sans TC',sans-serif",
+      boxShadow:'0 2px 6px rgba(60,40,120,0.06)',
+    }}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6}}>
+        <div style={{fontSize:'1.1cqw', fontWeight:900, color:'#5d3fb8', letterSpacing:1}}>外銷趨勢圖</div>
+        <div style={{display:'flex', gap:6, alignItems:'center'}}>
+          <select
+            value={country}
+            onChange={e=>setCountry(e.target.value)}
+            style={{
+              fontSize:'0.85cqw', padding:'2px 6px',
+              border:'1px solid #c8bfdf', borderRadius:6,
+              background:'#fff', color:'#5d3fb8',
+              fontFamily:'inherit', cursor:'pointer',
+            }}>
+            {COUNTRY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          {[['monthly','每月'], ['yearly','每年']].map(([k, label]) => (
+            <button key={k} onClick={()=>setPeriod(k)} style={{
+              fontSize:'0.85cqw', padding:'3px 10px',
+              border:'1px solid '+(period===k?'#7560d4':'#c8bfdf'),
+              background: period===k ? '#7560d4' : '#fff',
+              color: period===k ? '#fff' : '#7560d4',
+              borderRadius:10, cursor:'pointer',
+              fontFamily:'inherit', fontWeight:600,
+            }}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{flex:1, position:'relative', minHeight:0}}>
+        <canvas ref={canvasRef}/>
+      </div>
+    </div>
+  );
+};
+
 /* ── DASHBOARD PAGE (clicking the tomato character opens this) ─────────── */
 const Dashboard = ({onBack}) => (
-  <div style={{position:'relative', width:'min(1440px, 100%)', margin:'0 auto'}}>
+  <div style={{
+    position:'relative', width:'min(1440px, 100%)', margin:'0 auto',
+    containerType: 'inline-size',
+  }}>
     <button onClick={onBack} style={{
       position:'fixed', top:20, left:20, zIndex:10,
       padding:'10px 20px',
@@ -441,6 +586,7 @@ const Dashboard = ({onBack}) => (
       alt="桃園市 番茄市場儀表板"
       style={{display:'block', width:'100%', height:'auto', userSelect:'none'}}
     />
+    <ExportTrendChart/>
   </div>
 );
 

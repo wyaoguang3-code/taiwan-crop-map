@@ -41,6 +41,15 @@ for name in ("full_page", "tomato_dashboard"):
     design_imgs[name] = f"data:image/jpeg;base64,{data}"
 print(f"Design assets bundled: {list(design_imgs.keys())}")
 
+# Bundle dashboard datasets (parsed from agrstat.moa.gov.tw ODS exports).
+datasets = {}
+for name in ("tomato_export",):
+    f = UNPACKED / f"{name}.json"
+    if not f.exists():
+        continue
+    datasets[name] = json.loads(f.read_text())
+print(f"Datasets bundled: {list(datasets.keys())}")
+
 # Locate the template <script>...</script> block.
 tpl_re = re.compile(
     r'(<script type="__bundler/template">)(.*?)(</script>)',
@@ -68,16 +77,27 @@ new_inner = babel_re.sub(
 )
 
 # Inject (or replace) the per-region images script right before the babel script.
+# NB: DOMParser silently truncates very large inline scripts (~2 MB tested),
+# so each window.* assignment lives in its own <script> tag rather than one big
+# concatenated body.
 regions_script = (
     '<script>window.RIGHT_PANEL_IMGS='
     + json.dumps(regions, ensure_ascii=False)
-    + ';window.DESIGN_IMGS='
+    + ';</script>'
+    + '<script>window.DESIGN_IMGS='
     + json.dumps(design_imgs, ensure_ascii=False)
     + ';</script>'
+    + '<script>window.DATASETS='
+    + json.dumps(datasets, ensure_ascii=False)
+    + ';</script>'
+    # Chart.js for the interactive charts on the dashboard page.
+    + '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>'
 )
-# Remove any previously-injected version so re-runs stay idempotent.
+# Remove any previously-injected version so re-runs stay idempotent. Match
+# every consecutive injected <script>…</script> regardless of how it was split.
 new_inner = re.sub(
-    r'<script>window\.RIGHT_PANEL_IMGS=.*?</script>',
+    r'(?:<script(?:\s[^>]*)?>window\.(?:RIGHT_PANEL_IMGS|DESIGN_IMGS|DATASETS)=.*?</script>)+'
+    r'(?:<script src="[^"]*chart[^"]*"></script>)?',
     '',
     new_inner,
     flags=re.DOTALL,
