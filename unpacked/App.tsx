@@ -406,22 +406,29 @@ const Page = ({selected, onSelect}) => {
       </svg>
 
       {/* Animated mascot video — replaces the 3-mascot still in the middle.
-          Region in design coords: x=320-1170, y=1050-1500. The video file is
-          served from the same directory (not inlined) to keep the bundle small. */}
-      <video
-        src="mascots.mp4"
-        autoPlay loop muted playsInline
-        style={{
-          position:'absolute',
-          left:   `${320/1440*100}%`,
-          top:    `${1050/2996*100}%`,
-          width:  `${(1170-320)/1440*100}%`,
-          height: `${(1500-1050)/2996*100}%`,
-          objectFit:'contain',
-          background:'#ffffff',
-          userSelect:'none', pointerEvents:'none',
-        }}
-      />
+          The static image's mascots span x=288-1120, y=1092-1425; we cover a
+          slightly wider area (270-1170, 1050-1500) with a solid-white panel
+          and centre the video on top so no original arm/leg pokes through.   */}
+      <div style={{
+        position:'absolute',
+        left:   `${270/1440*100}%`,
+        top:    `${1050/2996*100}%`,
+        width:  `${(1170-270)/1440*100}%`,
+        height: `${(1500-1050)/2996*100}%`,
+        background:'#ffffff',
+        overflow:'hidden',
+      }}>
+        <video
+          src="mascots.mp4"
+          autoPlay loop muted playsInline
+          style={{
+            width:'100%', height:'100%',
+            objectFit:'contain',
+            display:'block',
+            userSelect:'none', pointerEvents:'none',
+          }}
+        />
+      </div>
 
       {/* LIVE Weather card — covers static "天氣預報" card.
           Card edges in design coords: x=712-920, y=381-696. */}
