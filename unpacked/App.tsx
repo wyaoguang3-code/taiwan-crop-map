@@ -129,17 +129,19 @@ const useLiveWeather = (regionId) => {
   return wx;
 };
 
-const WeatherCard = ({wx, style}) => (
+// Cards are rendered at exact design size (px) inside a ScaledOverlay wrapper
+// that handles both positioning and uniform scaling for mobile.
+const WeatherCard = ({wx}) => (
   <div style={{
-    position:'absolute',
+    width:'100%', height:'100%',
     background:'#edf2f3',
     border:'1.5px solid #b1c1c4',
     borderRadius:15,
     padding:'10px 12px 8px',
     display:'flex', flexDirection:'column', justifyContent:'space-between',
     overflow:'hidden',
+    boxSizing:'border-box',
     fontFamily:"'Noto Sans TC',sans-serif",
-    ...style,
   }}>
     <div>
       <div style={{fontSize:17,fontWeight:900,color:'#427ea1',marginBottom:4,letterSpacing:1.5}}>天氣預報</div>
@@ -180,7 +182,7 @@ const PRICE_FALLBACK = {
   '鳳梨':   { price: 75,  chgPct: 6,  sparkVals: [66,68,71,73,75] },
 };
 
-const PriceOverlay = ({cropName, variety, market, style}) => {
+const PriceOverlay = ({cropName, variety, market}) => {
   const initial = PRICE_FALLBACK[cropName] || PRICE_FALLBACK['彩椒'];
   const [data, setData] = React.useState(initial);
 
@@ -269,15 +271,15 @@ const PriceOverlay = ({cropName, variety, market, style}) => {
 
   return (
     <div style={{
-      position:'absolute',
+      width:'100%', height:'100%',
       background:'#f5f4e1',
       border:'1.5px solid #e3e1bd',
       borderRadius:15,
       padding:'12px 14px',
       display:'flex', flexDirection:'column',
       overflow:'hidden',
+      boxSizing:'border-box',
       fontFamily:"'Noto Sans TC',sans-serif",
-      ...style,
     }}>
       <div style={{fontSize:14,fontWeight:900,color:'#3b6826',marginBottom:4,letterSpacing:1}}>
         今日價格 <span style={{fontWeight:500,color:'#9a9a9a',fontSize:10}}>(每公斤)</span>
@@ -311,6 +313,31 @@ const PriceOverlay = ({cropName, variety, market, style}) => {
   );
 };
 
+/* ── SCALED OVERLAY ────────────────────────────────────────────────────────
+ * Renders `children` inside a fixed design-pixel box (`designW × designH`),
+ * then uniformly scales it to match the page width via CSS `cqw`. The Page
+ * container sets `container-type: inline-size`, so 100cqw = page width in px,
+ * and `100cqw / 1440px` is the unitless scale factor (1 at desktop, 0.27 at
+ * iPhone). Everything inside (fonts, SVG icons, padding) scales together so
+ * the layout stays pixel-perfect to the design at any viewport.
+ */
+const ScaledOverlay = ({x, y, w, h, children}) => (
+  <div style={{
+    position:'absolute',
+    left: `${x/1440*100}%`,
+    top:  `${y/2996*100}%`,
+    width: 0, height: 0,  // wrapper is just an anchor; child uses fixed px
+  }}>
+    <div style={{
+      width: w, height: h,
+      transformOrigin:'top left',
+      transform:'scale(calc(100cqw / 1440px))',
+    }}>
+      {children}
+    </div>
+  </div>
+);
+
 /* ── MAP CLICK HOTSPOT ─────────────────────────────────────────────────────
  * Single click region centered on the 番茄寶寶 character standing on 桃園市
  * in the grey map. Coordinates are in the 1440×2996 design canvas. Tested
@@ -329,16 +356,7 @@ const Page = ({selected, onSelect}) => {
   const wx = useLiveWeather(selected);
   const [hovered, setHovered] = React.useState(null);
 
-  // Card positions in design 1440×920 (top section). The full canvas is 2996
-  // tall, but the cards sit in the top 920px so we express them as % of the
-  // FULL canvas height too.
   const W = 1440, H = 2996;
-  const pos = (x, y, w, h) => ({
-    left:   `${x/W*100}%`,
-    top:    `${y/H*100}%`,
-    width:  `${w/W*100}%`,
-    height: `${h/H*100}%`,
-  });
 
   return (
     <div style={{
@@ -347,6 +365,8 @@ const Page = ({selected, onSelect}) => {
       aspectRatio: `${W} / ${H}`,
       margin:'0 auto',
       fontFamily:"'Noto Sans TC',sans-serif",
+      // Establish a query container so children can scale via cqw.
+      containerType: 'inline-size',
     }}>
       {/* Full design as page background */}
       <img
@@ -385,18 +405,21 @@ const Page = ({selected, onSelect}) => {
         </g>
       </svg>
 
-      {/* LIVE Weather card — covers the static "天氣預報" card.
-          Outer card edges in design coords: x=712-920, y=381-696. */}
-      <WeatherCard wx={wx} style={pos(712, 381, 920-712, 696-381)}/>
+      {/* LIVE Weather card — covers static "天氣預報" card.
+          Card edges in design coords: x=712-920, y=381-696. */}
+      <ScaledOverlay x={712} y={381} w={920-712} h={696-381}>
+        <WeatherCard wx={wx}/>
+      </ScaledOverlay>
 
-      {/* LIVE Price card — covers the static "今日價格" card.
-          Outer card edges in design coords: x=934-1165, y=381-696. */}
-      <PriceOverlay
-        cropName={region.cropApi}
-        variety={region.priceVariety}
-        market={region.priceMarket}
-        style={pos(934, 381, 1165-934, 696-381)}
-      />
+      {/* LIVE Price card — covers static "今日價格" card.
+          Card edges in design coords: x=934-1165, y=381-696. */}
+      <ScaledOverlay x={934} y={381} w={1165-934} h={696-381}>
+        <PriceOverlay
+          cropName={region.cropApi}
+          variety={region.priceVariety}
+          market={region.priceMarket}
+        />
+      </ScaledOverlay>
     </div>
   );
 };
