@@ -424,6 +424,335 @@ const Page = ({selected, onSelect}) => {
   );
 };
 
+/* ── AMIS LIVE-DATA HOOK ────────────────────────────────────────────────────
+ * One fetch shared by 4 dashboard cards. The AMIS endpoint's date filter is
+ * broken in production (returns latest 200 records regardless of Start_time
+ * /End_time), so we work with the rolling ~4-day window it gives us.
+ */
+const useAmisData = (cropName) => {
+  const [data, setData] = React.useState(null);
+  const [error, setError] = React.useState(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch(`https://data.moa.gov.tw/api/v1/AgriProductsTransType/?CropName=${encodeURIComponent(cropName)}`)
+      .then(r => r.json())
+      .then(j => { if (!cancelled) setData(Array.isArray(j?.Data) ? j.Data : []); })
+      .catch(e => { if (!cancelled) setError(e); });
+    return () => { cancelled = true; };
+  }, [cropName]);
+  return { data, error };
+};
+
+const ROC_TO_MD = (s) => {
+  const p = String(s||'').split(/[./-]/).map(Number);
+  return p.length>=3 ? `${p[1]}/${p[2]}` : '';
+};
+const ROC_DAYS_AGO = (s) => {
+  const p = String(s||'').split(/[./-]/).map(Number);
+  if (p.length<3) return Infinity;
+  const dt = new Date(p[0]+1911, p[1]-1, p[2]);
+  return Math.floor((Date.now() - dt.getTime()) / 86400000);
+};
+
+/* ── CARD 1: 價格面板 (AMIS) ────────────────────────────────────────────── */
+const PricePanelCard = () => {
+  const { data } = useAmisData('番茄');
+  // Filter to 牛番茄 (matches 桃園 default crop variety on the home page).
+  const rows = (data || []).filter(r => r.CropName === '番茄-牛番茄');
+
+  // Group by date, compute volume-weighted avg price per day.
+  const byDate = {};
+  for (const r of rows) {
+    const d = r.TransDate, p = +r.Avg_Price, q = +r.Trans_Quantity || 0;
+    if (!d || !(p > 0)) continue;
+    if (!byDate[d]) byDate[d] = { sumPQ: 0, sumQ: 0 };
+    byDate[d].sumPQ += p * (q || 1);
+    byDate[d].sumQ  += (q || 1);
+  }
+  const days = Object.keys(byDate).sort();
+  const latestDay = days[days.length - 1];
+  const prevDay   = days[days.length - 2];
+  const latest = latestDay ? byDate[latestDay].sumPQ / byDate[latestDay].sumQ : null;
+  const prev   = prevDay   ? byDate[prevDay].sumPQ   / byDate[prevDay].sumQ   : null;
+  const chgPct = (latest != null && prev) ? Math.round((latest - prev) / prev * 100) : null;
+
+  // 1 公斤 = 0.6 台斤 → price per 台斤 = price per 公斤 × 0.6
+  const taikinPrice = latest != null ? latest * 0.6 : null;
+  // Estimated retail = wholesale × 2 (industry rule of thumb: 口徑A = 批發×2)
+  const retailKg = latest != null ? Math.round(latest * 2) : null;
+  const retailTaikin = taikinPrice != null ? Math.round(taikinPrice * 2) : null;
+
+  // Suggestion logic: low chgPct → buy; high recent price → cautious sell
+  const buyTag = (chgPct != null && chgPct < 0) ? { label:'推薦購買', bg:'#a5dba6', fg:'#2c5d2e' }
+              : { label:'價格平穩', bg:'#f3d27a', fg:'#7a5418' };
+  const sellTag = (chgPct != null && chgPct > 5) ? { label:'高價時機', bg:'#f6a99a', fg:'#7a261a' }
+              : (chgPct != null && chgPct < -5) ? { label:'較弱價格', bg:'#f6a99a', fg:'#7a261a' }
+              : { label:'觀望', bg:'#f3d27a', fg:'#7a5418' };
+
+  const fmt = v => (v == null ? '—' : v.toLocaleString('zh-TW', {maximumFractionDigits:2}));
+
+  // Position over the design's 價格面板 slot. Outer card y=87-380.
+  return (
+    <div style={{
+      position:'absolute',
+      left:   `${320/1440*100}%`,
+      top:    `${87/1468*100}%`,
+      width:  `${(715-320)/1440*100}%`,
+      height: `${(380-87)/1468*100}%`,
+      background:'#fceadb',
+      border:'1.5px solid #ead1bb',
+      borderRadius:14,
+      padding:'14px 18px',
+      boxSizing:'border-box',
+      display:'flex', flexDirection:'column', gap:8,
+      fontFamily:"'Noto Sans TC',sans-serif",
+    }}>
+      {/* Sub-card: 價格面板 (AMIS) */}
+      <div style={{background:'#fff5e8', borderRadius:10, padding:'8px 12px', boxShadow:'0 1px 0 #f0e0c8'}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
+          <div style={{fontSize:'1.05cqw', fontWeight:900, color:'#a85a16', letterSpacing:1}}>價格面板 (AMIS)</div>
+          <div style={{fontSize:'0.65cqw', color:'#a89070'}}>{latestDay ? `2026/${ROC_TO_MD(latestDay)}` : ''}</div>
+        </div>
+        <div style={{marginTop:4, display:'flex', alignItems:'baseline', gap:10}}>
+          <div style={{fontSize:'0.85cqw', color:'#7a5418', fontWeight:700}}>最新均價</div>
+          <div style={{fontSize:'1.0cqw', fontWeight:900, color:'#5a3a18'}}>${fmt(latest)} / 公斤</div>
+          <div style={{fontSize:'0.75cqw', color:'#a89070'}}>(${fmt(taikinPrice)} / 台斤)</div>
+        </div>
+      </div>
+      {/* Sub-card: 試算預估零售價 */}
+      <div style={{background:'#fff5e8', borderRadius:10, padding:'8px 12px', boxShadow:'0 1px 0 #f0e0c8'}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
+          <div style={{fontSize:'1.05cqw', fontWeight:900, color:'#a85a16', letterSpacing:1}}>試算預估零售價</div>
+          <div style={{fontSize:'0.65cqw', color:'#a89070'}}>(口徑A: 批發 × 2)</div>
+        </div>
+        <div style={{marginTop:4, display:'flex', alignItems:'baseline', gap:14}}>
+          <div style={{fontSize:'1.0cqw', fontWeight:900, color:'#5a3a18'}}>${retailKg ?? '—'} / 公斤</div>
+          <div style={{fontSize:'0.65cqw', color:'#c8a070'}}>|</div>
+          <div style={{fontSize:'1.0cqw', fontWeight:900, color:'#5a3a18'}}>${retailTaikin ?? '—'} / 台斤</div>
+        </div>
+      </div>
+      {/* Sub-card: 近期交易指標 */}
+      <div style={{background:'#fff5e8', borderRadius:10, padding:'8px 12px', boxShadow:'0 1px 0 #f0e0c8'}}>
+        <div style={{fontSize:'1.05cqw', fontWeight:900, color:'#a85a16', letterSpacing:1, marginBottom:6}}>近期交易指標</div>
+        <div style={{display:'flex', gap:14, fontSize:'0.85cqw', color:'#7a5418', alignItems:'center', flexWrap:'wrap'}}>
+          <div>購買建議</div>
+          <span style={{padding:'3px 10px', borderRadius:10, background:buyTag.bg, color:buyTag.fg, fontWeight:700}}>{buyTag.label}</span>
+          <div>賣出建議</div>
+          <span style={{padding:'3px 10px', borderRadius:10, background:sellTag.bg, color:sellTag.fg, fontWeight:700}}>{sellTag.label}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ── CARD 2: 批發市場行情趨勢圖 ─────────────────────────────────────────── */
+const TrendChartCard = () => {
+  const { data } = useAmisData('番茄');
+  const canvasRef = React.useRef(null);
+  const chartRef  = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!data || !window.Chart || !canvasRef.current) return;
+    const rows = data.filter(r => r.CropName === '番茄-牛番茄');
+    const byDate = {};
+    for (const r of rows) {
+      const d = r.TransDate, p = +r.Avg_Price, q = +r.Trans_Quantity || 0;
+      if (!d || !(p > 0)) continue;
+      if (!byDate[d]) byDate[d] = { sumPQ: 0, sumQ: 0, totalQ: 0 };
+      byDate[d].sumPQ  += p * (q || 1);
+      byDate[d].sumQ   += (q || 1);
+      byDate[d].totalQ += q;
+    }
+    const days = Object.keys(byDate).sort();
+    const labels = days.map(ROC_TO_MD);
+    const prices = days.map(d => Math.round(byDate[d].sumPQ / byDate[d].sumQ * 10) / 10);
+    const volumes = days.map(d => Math.round(byDate[d].totalQ));
+
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new window.Chart(canvasRef.current, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label:'交易量 (KG)', data: volumes, backgroundColor:'rgba(168,213,176,0.55)', borderColor:'rgba(168,213,176,1)', borderWidth:1, yAxisID:'y2', order:2 },
+          { label:'每週均價 (NTD/公斤)', data: prices, type:'line', borderColor:'#3578d4', backgroundColor:'#3578d4', tension:0.25, pointRadius:3, pointHoverRadius:6, borderWidth:2.5, yAxisID:'y1', order:1 },
+        ],
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins: {
+          legend:{ position:'top', labels:{ font:{size:11}, boxWidth:14, color:'#3a4a6a' } },
+          tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${ctx.raw?.toLocaleString('zh-TW') ?? '—'}` } },
+        },
+        scales: {
+          x: { ticks:{font:{size:10}, color:'#666'}, grid:{display:false} },
+          y1:{ position:'left',  title:{display:true,text:'價格 (NTD/公斤)',font:{size:10},color:'#666'}, ticks:{font:{size:10},color:'#666'}, grid:{color:'rgba(0,0,0,0.05)'} },
+          y2:{ position:'right', title:{display:true,text:'交易量 (KG)',font:{size:10},color:'#666'}, ticks:{font:{size:10},color:'#666'}, grid:{drawOnChartArea:false} },
+        },
+      },
+    });
+    return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+  }, [data]);
+
+  return (
+    <div style={{
+      position:'absolute',
+      left:   `${730/1440*100}%`,
+      top:    `${87/1468*100}%`,
+      width:  `${(1407-730)/1440*100}%`,
+      height: `${(393-87)/1468*100}%`,
+      background:'#f4f6e8',
+      border:'1.5px solid #d8dcc0',
+      borderRadius:14,
+      padding:'10px 14px',
+      boxSizing:'border-box',
+      display:'flex', flexDirection:'column', gap:6,
+      fontFamily:"'Noto Sans TC',sans-serif",
+    }}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <div style={{fontSize:'1.15cqw', fontWeight:900, color:'#5a7028', letterSpacing:1.5}}>批發市場行情趨勢圖</div>
+        <div style={{fontSize:'0.65cqw', color:'#a8a880'}}>(API 限制：僅最新 ~4 日)</div>
+      </div>
+      <div style={{flex:1, background:'#fff', border:'1px solid #e3e6cd', borderRadius:10, padding:'8px 10px', position:'relative', minHeight:0}}>
+        <canvas ref={canvasRef}/>
+      </div>
+    </div>
+  );
+};
+
+/* ── CARD 3: 批發市場成交量比較 ─────────────────────────────────────────── */
+const VolumeBarsCard = () => {
+  const { data } = useAmisData('番茄');
+  const canvasRef = React.useRef(null);
+  const chartRef  = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!data || !window.Chart || !canvasRef.current) return;
+    const rows = data.filter(r => r.CropName === '番茄-牛番茄');
+    const byMarket = {};
+    for (const r of rows) {
+      const m = r.MarketName, q = +r.Trans_Quantity || 0;
+      if (!m) continue;
+      byMarket[m] = (byMarket[m] || 0) + q;
+    }
+    const sorted = Object.entries(byMarket).sort((a,b) => b[1]-a[1]);
+    const labels = sorted.map(([m]) => m);
+    const vols   = sorted.map(([,v]) => Math.round(v));
+
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new window.Chart(canvasRef.current, {
+      type: 'bar',
+      data: { labels, datasets: [{ label:'當月累積成交量 (KG)', data: vols, backgroundColor:'rgba(70,184,142,0.85)', borderColor:'#3aa07a', borderWidth:1 }] },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins: {
+          legend:{ position:'top', labels:{font:{size:11}, color:'#256b54'}},
+          tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${ctx.raw?.toLocaleString('zh-TW')} KG` } },
+        },
+        scales: {
+          x:{ ticks:{font:{size:10},color:'#666',maxRotation:60,minRotation:45}, grid:{display:false} },
+          y:{ title:{display:true,text:'交易量 (KG)',font:{size:10},color:'#666'}, ticks:{font:{size:10},color:'#666',callback:v=>v.toLocaleString('zh-TW')}, grid:{color:'rgba(0,0,0,0.05)'} },
+        },
+      },
+    });
+    return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+  }, [data]);
+
+  return (
+    <div style={{
+      position:'absolute',
+      left:   `${34/1440*100}%`,
+      top:    `${385/1468*100}%`,
+      width:  `${(713-34)/1440*100}%`,
+      height: `${(829-385)/1468*100}%`,
+      background:'#dceef0',
+      border:'1.5px solid #b6d7da',
+      borderRadius:14,
+      padding:'10px 14px',
+      boxSizing:'border-box',
+      display:'flex', flexDirection:'column', gap:6,
+      fontFamily:"'Noto Sans TC',sans-serif",
+    }}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <div style={{fontSize:'1.15cqw', fontWeight:900, color:'#256b78', letterSpacing:1.5}}>批發市場成交量比較</div>
+        <div style={{fontSize:'0.65cqw', color:'#7a9a9e'}}>(當月交易日累積)</div>
+      </div>
+      <div style={{flex:1, background:'#fff', border:'1px solid #cfe3e7', borderRadius:10, padding:'8px 10px', position:'relative', minHeight:0}}>
+        <canvas ref={canvasRef}/>
+      </div>
+    </div>
+  );
+};
+
+/* ── CARD 4: 批發市場價格比較 ───────────────────────────────────────────── */
+const PriceBarsCard = () => {
+  const { data } = useAmisData('番茄');
+  const canvasRef = React.useRef(null);
+  const chartRef  = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!data || !window.Chart || !canvasRef.current) return;
+    const rows = data.filter(r => r.CropName === '番茄-牛番茄');
+    const byMarket = {};
+    for (const r of rows) {
+      const m = r.MarketName, p = +r.Avg_Price, q = +r.Trans_Quantity || 0;
+      if (!m || !(p > 0)) continue;
+      if (!byMarket[m]) byMarket[m] = { sumPQ: 0, sumQ: 0 };
+      byMarket[m].sumPQ += p * (q || 1);
+      byMarket[m].sumQ  += (q || 1);
+    }
+    const sorted = Object.entries(byMarket)
+      .map(([m, v]) => [m, v.sumPQ / v.sumQ])
+      .sort((a,b) => a[1] - b[1]);
+    const labels = sorted.map(([m]) => m);
+    const prices = sorted.map(([,p]) => Math.round(p * 10) / 10);
+
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new window.Chart(canvasRef.current, {
+      type: 'bar',
+      data: { labels, datasets: [{ label:'當月加權均價 (NTD/公斤, 低到高)', data: prices, backgroundColor:'rgba(245,167,40,0.9)', borderColor:'#d88820', borderWidth:1 }] },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins: {
+          legend:{ position:'top', labels:{font:{size:11}, color:'#a8581a'}},
+          tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: $${ctx.raw} / 公斤` } },
+        },
+        scales: {
+          x:{ ticks:{font:{size:10},color:'#666',maxRotation:60,minRotation:45}, grid:{display:false} },
+          y:{ title:{display:true,text:'價格 (NTD/公斤)',font:{size:10},color:'#666'}, ticks:{font:{size:10},color:'#666'}, grid:{color:'rgba(0,0,0,0.05)'} },
+        },
+      },
+    });
+    return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+  }, [data]);
+
+  return (
+    <div style={{
+      position:'absolute',
+      left:   `${727/1440*100}%`,
+      top:    `${385/1468*100}%`,
+      width:  `${(1407-727)/1440*100}%`,
+      height: `${(829-385)/1468*100}%`,
+      background:'#fcedd6',
+      border:'1.5px solid #eed8b4',
+      borderRadius:14,
+      padding:'10px 14px',
+      boxSizing:'border-box',
+      display:'flex', flexDirection:'column', gap:6,
+      fontFamily:"'Noto Sans TC',sans-serif",
+    }}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <div style={{fontSize:'1.15cqw', fontWeight:900, color:'#a8581a', letterSpacing:1.5}}>批發市場價格比較</div>
+        <div style={{fontSize:'0.65cqw', color:'#bb9a72'}}>(當月交易量加權均價；可挑價格較佳市場)</div>
+      </div>
+      <div style={{flex:1, background:'#fff', border:'1px solid #f0e0c8', borderRadius:10, padding:'8px 10px', position:'relative', minHeight:0}}>
+        <canvas ref={canvasRef}/>
+      </div>
+    </div>
+  );
+};
+
 /* ── EXPORT TREND CHART (interactive, real data from agrstat.moa.gov.tw) ───
  * Replaces the static "外銷趨勢圖" cell in the dashboard image with a
  * Chart.js bar+line chart. Data lives in window.DATASETS.tomato_export
@@ -619,6 +948,10 @@ const Dashboard = ({onBack}) => (
       alt="桃園市 番茄市場儀表板"
       style={{display:'block', width:'100%', height:'auto', userSelect:'none'}}
     />
+    <PricePanelCard/>
+    <TrendChartCard/>
+    <VolumeBarsCard/>
+    <PriceBarsCard/>
     <ExportTrendChart/>
   </div>
 );
