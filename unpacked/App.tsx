@@ -155,12 +155,12 @@ const WeatherCard = ({wx, style}) => (
         <span>降雨機率 {wx.rain}%</span>
       </div>
     </div>
-    <div style={{borderTop:'1px solid #b8d8ea',paddingTop:6,display:'flex',justifyContent:'space-around'}}>
+    <div style={{borderTop:'1px solid #b8d8ea',paddingTop:6,display:'flex',justifyContent:'space-around',marginBottom:-2}}>
       {wx.fore.map((f,i)=>(
-        <div key={i} style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
-          <div style={{fontSize:13,fontWeight:700,color:'#427ea1'}}>{f.label}</div>
-          <WeatherIcon type={wmoIcon(f.code)} size={42}/>
-          <div style={{fontSize:14,fontWeight:700,color:'#5d5d5d'}}>{f.temp}°C</div>
+        <div key={i} style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:0}}>
+          <div style={{fontSize:15,fontWeight:700,color:'#427ea1',marginBottom:1}}>{f.label}</div>
+          <WeatherIcon type={wmoIcon(f.code)} size={54}/>
+          <div style={{fontSize:18,fontWeight:700,color:'#5d5d5d',marginTop:1}}>{f.temp}°C</div>
         </div>
       ))}
     </div>
