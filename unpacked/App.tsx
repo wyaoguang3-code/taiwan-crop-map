@@ -534,15 +534,18 @@ const ExportTrendChart = () => {
   }
 
   // Two-layer nested layout matching the design:
-  //   outer card (lavender bg + title + toggle)         x=34-694, y=842-1265
-  //   └── inner chart card (white bg + canvas)          x=46-682, y=908-1241
+  //   outer card (lavender bg + title + toggle)         x=34-713, y=842-1287
+  //   └── inner chart card (white bg + canvas)          x=54-693, y=908-1241
+  // (Earlier numbers were off — they pointed at the inner chart card's edges,
+  // not the outer wrapper. Right and bottom now extend to match the design's
+  // full lavender wrapper, so the card matches its neighbour 災損金額.)
   return (
     <div style={{
       position:'absolute',
       left:   `${34/1440*100}%`,
       top:    `${842/1468*100}%`,
-      width:  `${(694-34)/1440*100}%`,
-      height: `${(1265-842)/1468*100}%`,
+      width:  `${(713-34)/1440*100}%`,
+      height: `${(1287-842)/1468*100}%`,
       background:'#ece8f8',
       border:'1.5px solid #d4cfe8',
       borderRadius:14,
