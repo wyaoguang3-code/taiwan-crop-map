@@ -311,24 +311,12 @@ const PriceOverlay = ({cropName, variety, market, style}) => {
   );
 };
 
-/* ── MAP CLICK HOTSPOTS ────────────────────────────────────────────────────
- * Approximate centers within the 1440×2996 design canvas (top section only).
- * Clicking switches `selected`, which retargets the live data overlays.
- * The static design only ships a 桃園 variant of the right info panel, so the
- * mascot/title artwork stays as 桃園 when the user picks another county —
- * only the live weather + price cards refresh.
+/* ── MAP CLICK HOTSPOT ─────────────────────────────────────────────────────
+ * Single click region centered on the 番茄寶寶 character standing on 桃園市
+ * in the grey map. Coordinates are in the 1440×2996 design canvas. Tested
+ * visually against full_page.jpg to land on the body of the tomato mascot.
  */
-const COUNTY_HOTSPOTS = [
-  { id:'taipei',    cx: 412, cy: 175, r: 30 },
-  { id:'taoyuan',   cx: 360, cy: 200, r: 36 },
-  { id:'yilan',     cx: 488, cy: 220, r: 30 },
-  { id:'taichung',  cx: 285, cy: 380, r: 38 },
-  { id:'hualien',   cx: 460, cy: 430, r: 36 },
-  { id:'yunlin',    cx: 225, cy: 510, r: 30 },
-  { id:'tainan',    cx: 200, cy: 660, r: 34 },
-  { id:'kaohsiung', cx: 295, cy: 720, r: 32 },
-  { id:'pingtung',  cx: 370, cy: 800, r: 32 },
-];
+const TOMATO_HOTSPOT = { id:'taoyuan', cx: 482, cy: 200, r: 44 };
 
 /* ── PAGE ───────────────────────────────────────────────────────────────────
  * The whole page is rendered as one design PNG (full_page.jpg, 1440×2996),
@@ -372,36 +360,29 @@ const Page = ({selected, onSelect}) => {
         }}
       />
 
-      {/* Map click hotspots — invisible circles over each county. Glow on hover/select. */}
+      {/* Click hotspot — invisible circle over the tomato character. Glow on hover. */}
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
         style={{position:'absolute', inset:0, width:'100%', height:'100%'}}
       >
         <defs>
-          <filter id="county-glow">
+          <filter id="tomato-glow">
             <feGaussianBlur stdDeviation="6" result="blur"/>
             <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
         </defs>
-        {COUNTY_HOTSPOTS.map(z => {
-          const isSel = selected === z.id;
-          const isHov = hovered === z.id && !isSel;
-          return (
-            <g key={z.id}
-              onClick={() => onSelect(z.id)}
-              onMouseEnter={() => setHovered(z.id)}
-              onMouseLeave={() => setHovered(null)}
-              style={{cursor:'pointer'}}>
-              {(isHov || isSel) && (
-                <circle cx={z.cx} cy={z.cy} r={z.r+6}
-                  fill={isSel ? "rgba(255,200,80,0.18)" : "rgba(255,255,255,0.32)"}
-                  filter="url(#county-glow)"/>
-              )}
-              <circle cx={z.cx} cy={z.cy} r={z.r} fill="transparent"/>
-            </g>
-          );
-        })}
+        <g
+          onClick={() => onSelect(TOMATO_HOTSPOT.id)}
+          onMouseEnter={() => setHovered(TOMATO_HOTSPOT.id)}
+          onMouseLeave={() => setHovered(null)}
+          style={{cursor:'pointer'}}>
+          {hovered === TOMATO_HOTSPOT.id && (
+            <circle cx={TOMATO_HOTSPOT.cx} cy={TOMATO_HOTSPOT.cy} r={TOMATO_HOTSPOT.r+8}
+              fill="rgba(255,255,255,0.32)" filter="url(#tomato-glow)"/>
+          )}
+          <circle cx={TOMATO_HOTSPOT.cx} cy={TOMATO_HOTSPOT.cy} r={TOMATO_HOTSPOT.r} fill="transparent"/>
+        </g>
       </svg>
 
       {/* LIVE Weather card — covers the static "天氣預報" card.
