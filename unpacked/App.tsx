@@ -534,23 +534,22 @@ const ExportTrendChart = () => {
   }
 
   // Two-layer nested layout matching the design:
-  //   outer card (lavender bg + title + toggle)
-  //   └── inner card (white bg + chart canvas)
-  // Outer card: x=34-694, y=908-1242 in the 1440×1468 design canvas.
+  //   outer card (lavender bg + title + toggle)         x=34-694, y=842-1265
+  //   └── inner chart card (white bg + canvas)          x=46-682, y=908-1241
   return (
     <div style={{
       position:'absolute',
       left:   `${34/1440*100}%`,
-      top:    `${908/1468*100}%`,
+      top:    `${842/1468*100}%`,
       width:  `${(694-34)/1440*100}%`,
-      height: `${(1242-908)/1468*100}%`,
+      height: `${(1265-842)/1468*100}%`,
       background:'#ece8f8',
       border:'1.5px solid #d4cfe8',
       borderRadius:14,
-      padding:'10px 14px',
+      padding:'14px 18px',
       boxSizing:'border-box',
       display:'flex', flexDirection:'column',
-      gap:6,
+      gap:10,
       fontFamily:"'Noto Sans TC',sans-serif",
     }}>
       {/* Outer header: title + 每月/每年 toggle (and country picker for interactivity) */}
