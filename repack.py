@@ -30,10 +30,10 @@ for p in sorted(UNPACKED.glob("right_panel_*.png")):
     regions[region_id] = f"data:image/png;base64,{data}"
 print(f"Region-specific right panels: {list(regions.keys())}")
 
-# Collect design assets (mascots row, farming photos, farmers source, top section)
-# for the new design layout. Files live in unpacked/ as JPEGs.
+# Bundle the full-page design export. The new App renders this single image
+# as the page background and only overlays the 2 dynamic data cards on top.
 design_imgs = {}
-for name in ("top_section", "mascots_row", "farmers_source", "farming_1", "farming_2", "farming_3"):
+for name in ("full_page",):
     f = UNPACKED / f"{name}.jpg"
     if not f.exists():
         continue
