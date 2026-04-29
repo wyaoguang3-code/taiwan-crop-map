@@ -444,8 +444,10 @@ const ExportTrendChart = () => {
     if (!cd) return;
     const series = period === 'yearly' ? cd.yearly : cd.monthly;
 
-    // For monthly, only show last ~60 months so labels stay legible.
     let entries = Object.entries(series);
+    // Yearly: keep last 11 years (matches the design's 2016–2026 range).
+    // Monthly: last 60 months stays legible.
+    if (period === 'yearly') entries = entries.slice(-11);
     if (period === 'monthly') entries = entries.slice(-60);
 
     const labels = entries.map(([k]) => k);
@@ -460,21 +462,25 @@ const ExportTrendChart = () => {
         labels,
         datasets: [
           {
+            // Bars on the right axis = export volume (公噸), light-blue palette.
             label: '出口量 (公噸)',
             data: weights,
-            backgroundColor: 'rgba(180,196,236,0.85)',
-            borderColor: 'rgba(140,156,210,1)',
+            backgroundColor: 'rgba(189,211,250,0.95)',
+            borderColor: 'rgba(165,193,238,1)',
             borderWidth: 1,
-            yAxisID: 'y1',
+            yAxisID: 'y2',
             order: 2,
+            barPercentage: 0.75,
+            categoryPercentage: 0.85,
           },
           {
+            // Line on the left axis = average price (NTD/公噸), purple.
             label: '均價 (NTD/公噸)',
             data: avgPrices,
             type: 'line',
-            borderColor: '#7560d4',
-            backgroundColor: '#7560d4',
-            yAxisID: 'y2',
+            borderColor: '#9070d0',
+            backgroundColor: '#9070d0',
+            yAxisID: 'y1',
             tension: 0.25,
             pointRadius: period==='yearly' ? 4 : 1.5,
             pointHoverRadius: 6,
@@ -489,22 +495,34 @@ const ExportTrendChart = () => {
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 14 } },
+          legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 14, color:'#5d3fb8' } },
           tooltip: {
             callbacks: {
               label: (ctx) => {
                 const v = ctx.raw;
                 if (v == null) return ctx.dataset.label + ': —';
-                const fmt = v.toLocaleString('zh-TW');
-                return ctx.dataset.label + ': ' + fmt;
+                return ctx.dataset.label + ': ' + v.toLocaleString('zh-TW');
               },
             },
           },
         },
         scales: {
-          x: { ticks: { font: { size: 10 }, maxRotation: 60, autoSkip: true, maxTicksLimit: period==='yearly' ? 12 : 14 } },
-          y1: { position:'left',  title:{display:true,text:'出口量 (公噸)',font:{size:10}}, ticks:{font:{size:10}} },
-          y2: { position:'right', title:{display:true,text:'均價 (NTD/公噸)',font:{size:10}}, ticks:{font:{size:10}}, grid:{drawOnChartArea:false} },
+          x: {
+            ticks: { font: { size: 11 }, color:'#666', maxRotation: 0, autoSkip: true, maxTicksLimit: period==='yearly' ? 11 : 8 },
+            grid: { display: false },
+          },
+          y1: {
+            position:'left',
+            title:{display:true, text:'均價 (NTD/公噸)', font:{size:10}, color:'#666'},
+            ticks:{font:{size:10}, color:'#666'},
+            grid:{color:'rgba(0,0,0,0.05)'},
+          },
+          y2: {
+            position:'right',
+            title:{display:true, text:'出口量 (公噸)', font:{size:10}, color:'#666'},
+            ticks:{font:{size:10}, color:'#666'},
+            grid:{drawOnChartArea:false},
+          },
         },
       },
     });
@@ -515,33 +533,32 @@ const ExportTrendChart = () => {
     return <div style={{padding:20,color:'#888',fontSize:12}}>資料未載入</div>;
   }
 
-  // Card position over the dashboard image (1440×1468 design canvas).
-  // Card edges: x=22-695, y=920-1250.
+  // Card position matches the design's 外銷趨勢圖 slot exactly:
+  // x=34-694, y=908-1242 in the 1440×1468 design canvas.
   return (
     <div style={{
       position:'absolute',
-      left: `${22/1440*100}%`,
-      top:  `${920/1468*100}%`,
-      width: `${(695-22)/1440*100}%`,
-      height:`${(1250-920)/1468*100}%`,
-      background:'#f0eefb',
-      border:'1.5px solid #d6cff0',
+      left:   `${34/1440*100}%`,
+      top:    `${908/1468*100}%`,
+      width:  `${(694-34)/1440*100}%`,
+      height: `${(1242-908)/1468*100}%`,
+      background:'#ffffff',
+      border:'1.5px solid #d4cfe8',
       borderRadius:14,
       padding:'10px 14px',
       boxSizing:'border-box',
       display:'flex', flexDirection:'column',
       fontFamily:"'Noto Sans TC',sans-serif",
-      boxShadow:'0 2px 6px rgba(60,40,120,0.06)',
     }}>
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6}}>
-        <div style={{fontSize:'1.1cqw', fontWeight:900, color:'#5d3fb8', letterSpacing:1}}>外銷趨勢圖</div>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4}}>
+        <div style={{fontSize:'1.15cqw', fontWeight:900, color:'#7560d4', letterSpacing:1.5}}>外銷趨勢圖</div>
         <div style={{display:'flex', gap:6, alignItems:'center'}}>
           <select
             value={country}
             onChange={e=>setCountry(e.target.value)}
             style={{
-              fontSize:'0.85cqw', padding:'2px 6px',
-              border:'1px solid #c8bfdf', borderRadius:6,
+              fontSize:'0.85cqw', padding:'3px 8px',
+              border:'1px solid #d4cfe8', borderRadius:8,
               background:'#fff', color:'#5d3fb8',
               fontFamily:'inherit', cursor:'pointer',
             }}>
@@ -549,11 +566,11 @@ const ExportTrendChart = () => {
           </select>
           {[['monthly','每月'], ['yearly','每年']].map(([k, label]) => (
             <button key={k} onClick={()=>setPeriod(k)} style={{
-              fontSize:'0.85cqw', padding:'3px 10px',
-              border:'1px solid '+(period===k?'#7560d4':'#c8bfdf'),
-              background: period===k ? '#7560d4' : '#fff',
-              color: period===k ? '#fff' : '#7560d4',
-              borderRadius:10, cursor:'pointer',
+              fontSize:'0.85cqw', padding:'3px 12px',
+              border:'1px solid '+(period===k?'#9070d0':'#e4dff0'),
+              background: period===k ? '#9070d0' : '#faf8ff',
+              color: period===k ? '#fff' : '#9b8fc4',
+              borderRadius:14, cursor:'pointer',
               fontFamily:'inherit', fontWeight:600,
             }}>{label}</button>
           ))}
