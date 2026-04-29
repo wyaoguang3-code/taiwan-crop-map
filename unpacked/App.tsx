@@ -565,10 +565,10 @@ const TrendChartCard = () => {
   return (
     <div style={{
       position:'absolute',
-      left:   `${730/1440*100}%`,
+      left:   `${726/1440*100}%`,
       top:    `${87/1468*100}%`,
-      width:  `${(1407-730)/1440*100}%`,
-      height: `${(393-87)/1468*100}%`,
+      width:  `${(1407-726)/1440*100}%`,
+      height: `${(374-87)/1468*100}%`,
       background:'#f4f6e8',
       border:'1.5px solid #d8dcc0',
       borderRadius:14,
