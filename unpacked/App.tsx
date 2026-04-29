@@ -976,21 +976,25 @@ const Dashboard = ({onBack}) => (
     overflow:'hidden',
     containerType: 'inline-size',
   }}>
-    <button onClick={onBack} style={{
-      position:'fixed', top:20, left:20, zIndex:10,
-      padding:'10px 20px',
-      background:'#3b6826', color:'#fbf6e9',
-      border:'none', borderRadius:24, cursor:'pointer',
-      fontSize:14, fontWeight:700, letterSpacing:2,
-      boxShadow:'0 4px 14px rgba(0,0,0,0.2)',
-      fontFamily:"'Noto Sans TC',sans-serif",
-    }}>← 返回首頁</button>
     <div style={{
       position:'absolute', inset:0,
       width:1440, height:1468,
       transformOrigin:'top left',
       transform:'scale(calc(100cqw / 1440px))',
     }}>
+      {/* Logo click area — covers the static "農知島 The Island of Harvest"
+          mark in the top-left of the dashboard image; click returns to home. */}
+      <div
+        onClick={onBack}
+        title="返回首頁"
+        style={{
+          position:'absolute',
+          left: 16, top: 6,
+          width: 200, height: 56,
+          cursor:'pointer',
+          zIndex: 5,
+        }}
+      />
       <img
         src={(window.DESIGN_IMGS && window.DESIGN_IMGS.tomato_dashboard) || ''}
         alt="桃園市 番茄市場儀表板"
