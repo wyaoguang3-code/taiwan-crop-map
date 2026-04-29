@@ -149,8 +149,8 @@ const WeatherCard = ({wx, style}) => (
           {wx.temp}<span style={{fontSize:26,fontWeight:700}}>°C</span>
         </div>
       </div>
-      <div style={{fontSize:14,fontWeight:700,color:'#427ea1',textAlign:'center',marginBottom:6}}>{WMO_DESC[wx.code]||'多雲時晴'}</div>
-      <div style={{fontSize:12.5,fontWeight:700,color:'#427ea1',display:'flex',justifyContent:'space-between',padding:'0 2px'}}>
+      <div style={{fontSize:18,fontWeight:700,color:'#427ea1',textAlign:'center',marginBottom:8,letterSpacing:1}}>{WMO_DESC[wx.code]||'多雲時晴'}</div>
+      <div style={{fontSize:15,fontWeight:700,color:'#427ea1',display:'flex',justifyContent:'space-between',padding:'0 2px'}}>
         <span>濕度 {wx.hum}%</span>
         <span>降雨機率 {wx.rain}%</span>
       </div>
