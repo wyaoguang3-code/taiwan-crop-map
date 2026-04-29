@@ -135,22 +135,22 @@ const WeatherCard = ({wx, style}) => (
     background:'#edf2f3',
     border:'1.5px solid #b1c1c4',
     borderRadius:15,
-    padding:'12px 14px',
+    padding:'10px 12px 8px',
     display:'flex', flexDirection:'column', justifyContent:'space-between',
     overflow:'hidden',
     fontFamily:"'Noto Sans TC',sans-serif",
     ...style,
   }}>
     <div>
-      <div style={{fontSize:14,fontWeight:900,color:'#427ea1',marginBottom:6,letterSpacing:1}}>天氣預報</div>
-      <div style={{display:'flex',alignItems:'center',gap:4,marginBottom:5}}>
-        <MainWxIcon type={wmoIcon(wx.code)} size={56}/>
-        <div style={{fontSize:38,fontWeight:900,color:'#427ea1',lineHeight:1,letterSpacing:-0.5}}>
-          {wx.temp}<span style={{fontSize:20,fontWeight:700}}>°C</span>
+      <div style={{fontSize:17,fontWeight:900,color:'#427ea1',marginBottom:4,letterSpacing:1.5}}>天氣預報</div>
+      <div style={{display:'flex',alignItems:'center',gap:2,marginBottom:2,marginLeft:-4}}>
+        <MainWxIcon type={wmoIcon(wx.code)} size={72}/>
+        <div style={{fontSize:48,fontWeight:900,color:'#427ea1',lineHeight:1,letterSpacing:-1}}>
+          {wx.temp}<span style={{fontSize:26,fontWeight:700}}>°C</span>
         </div>
       </div>
-      <div style={{fontSize:12,fontWeight:700,color:'#427ea1',textAlign:'center',marginBottom:5}}>{WMO_DESC[wx.code]||'多雲時晴'}</div>
-      <div style={{fontSize:11,fontWeight:700,color:'#427ea1',display:'flex',justifyContent:'space-between',padding:'0 2px'}}>
+      <div style={{fontSize:14,fontWeight:700,color:'#427ea1',textAlign:'center',marginBottom:6}}>{WMO_DESC[wx.code]||'多雲時晴'}</div>
+      <div style={{fontSize:12.5,fontWeight:700,color:'#427ea1',display:'flex',justifyContent:'space-between',padding:'0 2px'}}>
         <span>濕度 {wx.hum}%</span>
         <span>降雨機率 {wx.rain}%</span>
       </div>
@@ -158,9 +158,9 @@ const WeatherCard = ({wx, style}) => (
     <div style={{borderTop:'1px solid #b8d8ea',paddingTop:6,display:'flex',justifyContent:'space-around'}}>
       {wx.fore.map((f,i)=>(
         <div key={i} style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
-          <div style={{fontSize:11,fontWeight:700,color:'#427ea1'}}>{f.label}</div>
-          <WeatherIcon type={wmoIcon(f.code)} size={32}/>
-          <div style={{fontSize:12,fontWeight:700,color:'#5d5d5d'}}>{f.temp}°C</div>
+          <div style={{fontSize:13,fontWeight:700,color:'#427ea1'}}>{f.label}</div>
+          <WeatherIcon type={wmoIcon(f.code)} size={42}/>
+          <div style={{fontSize:14,fontWeight:700,color:'#5d5d5d'}}>{f.temp}°C</div>
         </div>
       ))}
     </div>
