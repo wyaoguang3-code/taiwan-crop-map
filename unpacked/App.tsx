@@ -405,6 +405,24 @@ const Page = ({selected, onSelect}) => {
         </g>
       </svg>
 
+      {/* Animated mascot video — replaces the 3-mascot still in the middle.
+          Region in design coords: x=320-1170, y=1050-1500. The video file is
+          served from the same directory (not inlined) to keep the bundle small. */}
+      <video
+        src="mascots.mp4"
+        autoPlay loop muted playsInline
+        style={{
+          position:'absolute',
+          left:   `${320/1440*100}%`,
+          top:    `${1050/2996*100}%`,
+          width:  `${(1170-320)/1440*100}%`,
+          height: `${(1500-1050)/2996*100}%`,
+          objectFit:'contain',
+          background:'#ffffff',
+          userSelect:'none', pointerEvents:'none',
+        }}
+      />
+
       {/* LIVE Weather card — covers static "天氣預報" card.
           Card edges in design coords: x=712-920, y=381-696. */}
       <ScaledOverlay x={712} y={381} w={920-712} h={696-381}>
