@@ -533,8 +533,10 @@ const ExportTrendChart = () => {
     return <div style={{padding:20,color:'#888',fontSize:12}}>資料未載入</div>;
   }
 
-  // Card position matches the design's 外銷趨勢圖 slot exactly:
-  // x=34-694, y=908-1242 in the 1440×1468 design canvas.
+  // Two-layer nested layout matching the design:
+  //   outer card (lavender bg + title + toggle)
+  //   └── inner card (white bg + chart canvas)
+  // Outer card: x=34-694, y=908-1242 in the 1440×1468 design canvas.
   return (
     <div style={{
       position:'absolute',
@@ -542,23 +544,25 @@ const ExportTrendChart = () => {
       top:    `${908/1468*100}%`,
       width:  `${(694-34)/1440*100}%`,
       height: `${(1242-908)/1468*100}%`,
-      background:'#ffffff',
+      background:'#ece8f8',
       border:'1.5px solid #d4cfe8',
       borderRadius:14,
       padding:'10px 14px',
       boxSizing:'border-box',
       display:'flex', flexDirection:'column',
+      gap:6,
       fontFamily:"'Noto Sans TC',sans-serif",
     }}>
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4}}>
-        <div style={{fontSize:'1.15cqw', fontWeight:900, color:'#7560d4', letterSpacing:1.5}}>外銷趨勢圖</div>
+      {/* Outer header: title + 每月/每年 toggle (and country picker for interactivity) */}
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <div style={{fontSize:'1.25cqw', fontWeight:900, color:'#5d3fb8', letterSpacing:1.5}}>外銷趨勢圖</div>
         <div style={{display:'flex', gap:6, alignItems:'center'}}>
           <select
             value={country}
             onChange={e=>setCountry(e.target.value)}
             style={{
               fontSize:'0.85cqw', padding:'3px 8px',
-              border:'1px solid #d4cfe8', borderRadius:8,
+              border:'1px solid #d4cfe8', borderRadius:14,
               background:'#fff', color:'#5d3fb8',
               fontFamily:'inherit', cursor:'pointer',
             }}>
@@ -566,17 +570,27 @@ const ExportTrendChart = () => {
           </select>
           {[['monthly','每月'], ['yearly','每年']].map(([k, label]) => (
             <button key={k} onClick={()=>setPeriod(k)} style={{
-              fontSize:'0.85cqw', padding:'3px 12px',
-              border:'1px solid '+(period===k?'#9070d0':'#e4dff0'),
-              background: period===k ? '#9070d0' : '#faf8ff',
-              color: period===k ? '#fff' : '#9b8fc4',
-              borderRadius:14, cursor:'pointer',
-              fontFamily:'inherit', fontWeight:600,
+              fontSize:'0.85cqw', padding:'4px 14px',
+              border:'1px solid '+(period===k?'#7560d4':'#e8dfd0'),
+              background: period===k ? '#7560d4' : '#faf2dd',
+              color: period===k ? '#fff' : '#a8956e',
+              borderRadius:16, cursor:'pointer',
+              fontFamily:'inherit', fontWeight:700,
             }}>{label}</button>
           ))}
         </div>
       </div>
-      <div style={{flex:1, position:'relative', minHeight:0}}>
+      {/* Inner chart card */}
+      <div style={{
+        flex:1,
+        background:'#ffffff',
+        border:'1px solid #e4dff0',
+        borderRadius:10,
+        padding:'8px 10px',
+        position:'relative',
+        minHeight:0,
+        boxSizing:'border-box',
+      }}>
         <canvas ref={canvasRef}/>
       </div>
     </div>
