@@ -33,7 +33,7 @@ print(f"Region-specific right panels: {list(regions.keys())}")
 # Bundle the full-page design export. The new App renders this single image
 # as the page background and only overlays the 2 dynamic data cards on top.
 design_imgs = {}
-for name in ("full_page",):
+for name in ("full_page", "tomato_dashboard"):
     f = UNPACKED / f"{name}.jpg"
     if not f.exists():
         continue

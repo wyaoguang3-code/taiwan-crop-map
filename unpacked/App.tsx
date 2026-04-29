@@ -424,13 +424,49 @@ const Page = ({selected, onSelect}) => {
   );
 };
 
+/* ── DASHBOARD PAGE (clicking the tomato character opens this) ─────────── */
+const Dashboard = ({onBack}) => (
+  <div style={{position:'relative', width:'min(1440px, 100%)', margin:'0 auto'}}>
+    <button onClick={onBack} style={{
+      position:'fixed', top:20, left:20, zIndex:10,
+      padding:'10px 20px',
+      background:'#3b6826', color:'#fbf6e9',
+      border:'none', borderRadius:24, cursor:'pointer',
+      fontSize:14, fontWeight:700, letterSpacing:2,
+      boxShadow:'0 4px 14px rgba(0,0,0,0.2)',
+      fontFamily:"'Noto Sans TC',sans-serif",
+    }}>← 返回首頁</button>
+    <img
+      src={(window.DESIGN_IMGS && window.DESIGN_IMGS.tomato_dashboard) || ''}
+      alt="桃園市 番茄市場儀表板"
+      style={{display:'block', width:'100%', height:'auto', userSelect:'none'}}
+    />
+  </div>
+);
+
 /* ── MAIN APP ────────────────────────────────────────────────────────────── */
 const App = () => {
   const [selected, setSelected] = useState(()=>localStorage.getItem('tw-map-sel')||'taoyuan');
+  const [view, setView] = useState(() => window.location.hash === '#dashboard' ? 'dashboard' : 'main');
+
   const handleSelect = (id) => {
     setSelected(id);
     localStorage.setItem('tw-map-sel', id);
+    // Tomato click on the map → open the dashboard view.
+    if (id === 'taoyuan') {
+      window.location.hash = 'dashboard';
+    }
   };
+
+  // Sync view with URL hash so browser back/forward works and the URL is shareable.
+  React.useEffect(() => {
+    const sync = () => setView(window.location.hash === '#dashboard' ? 'dashboard' : 'main');
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+
+  // Scroll to top when switching views.
+  React.useEffect(() => { window.scrollTo(0, 0); }, [view]);
 
   // The base bundle centers a fixed-size card; we render a full-width page,
   // so override body/root layout to allow vertical scroll and full-bleed.
@@ -471,6 +507,9 @@ const App = () => {
     };
   }, []);
 
+  if (view === 'dashboard') {
+    return <Dashboard onBack={() => { window.location.hash = ''; }}/>;
+  }
   return <Page selected={selected} onSelect={handleSelect}/>;
 };
 
