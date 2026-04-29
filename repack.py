@@ -43,7 +43,7 @@ print(f"Design assets bundled: {list(design_imgs.keys())}")
 
 # Bundle dashboard datasets (parsed from agrstat.moa.gov.tw ODS exports).
 datasets = {}
-for name in ("tomato_export",):
+for name in ("tomato_export", "tomato_market", "disaster_yearly"):
     f = UNPACKED / f"{name}.json"
     if not f.exists():
         continue

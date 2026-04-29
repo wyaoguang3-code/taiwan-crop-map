@@ -424,70 +424,39 @@ const Page = ({selected, onSelect}) => {
   );
 };
 
-/* ── AMIS LIVE-DATA HOOK ────────────────────────────────────────────────────
- * One fetch shared by 4 dashboard cards. The AMIS endpoint's date filter is
- * broken in production (returns latest 200 records regardless of Start_time
- * /End_time), so we work with the rolling ~4-day window it gives us.
+/* ── DASHBOARD DATA ─────────────────────────────────────────────────────────
+ * Pre-aggregated tomato (FJ3 牛蕃茄) market dataset bundled into the page —
+ * sourced from a daily ETL that hits AMIS and persists day/week/month/year
+ * series + per-market comparison. This avoids the AMIS endpoint's broken
+ * date filter (it always returns latest 200 rows in prod).
  */
-const useAmisData = (cropName) => {
-  const [data, setData] = React.useState(null);
-  const [error, setError] = React.useState(null);
-  React.useEffect(() => {
-    let cancelled = false;
-    fetch(`https://data.moa.gov.tw/api/v1/AgriProductsTransType/?CropName=${encodeURIComponent(cropName)}`)
-      .then(r => r.json())
-      .then(j => { if (!cancelled) setData(Array.isArray(j?.Data) ? j.Data : []); })
-      .catch(e => { if (!cancelled) setError(e); });
-    return () => { cancelled = true; };
-  }, [cropName]);
-  return { data, error };
-};
-
-const ROC_TO_MD = (s) => {
-  const p = String(s||'').split(/[./-]/).map(Number);
-  return p.length>=3 ? `${p[1]}/${p[2]}` : '';
-};
-const ROC_DAYS_AGO = (s) => {
-  const p = String(s||'').split(/[./-]/).map(Number);
-  if (p.length<3) return Infinity;
-  const dt = new Date(p[0]+1911, p[1]-1, p[2]);
-  return Math.floor((Date.now() - dt.getTime()) / 86400000);
+const useTomatoMarket = () => {
+  return (window.DATASETS && window.DATASETS.tomato_market) || null;
 };
 
 /* ── CARD 1: 價格面板 (AMIS) ────────────────────────────────────────────── */
 const PricePanelCard = () => {
-  const { data } = useAmisData('番茄');
-  // Filter to 牛番茄 (matches 桃園 default crop variety on the home page).
-  const rows = (data || []).filter(r => r.CropName === '番茄-牛番茄');
+  const m = useTomatoMarket();
+  const latest = m?.latest_price?.price ?? null;
+  const latestDate = m?.latest_price?.date ?? null;
 
-  // Group by date, compute volume-weighted avg price per day.
-  const byDate = {};
-  for (const r of rows) {
-    const d = r.TransDate, p = +r.Avg_Price, q = +r.Trans_Quantity || 0;
-    if (!d || !(p > 0)) continue;
-    if (!byDate[d]) byDate[d] = { sumPQ: 0, sumQ: 0 };
-    byDate[d].sumPQ += p * (q || 1);
-    byDate[d].sumQ  += (q || 1);
-  }
-  const days = Object.keys(byDate).sort();
-  const latestDay = days[days.length - 1];
-  const prevDay   = days[days.length - 2];
-  const latest = latestDay ? byDate[latestDay].sumPQ / byDate[latestDay].sumQ : null;
-  const prev   = prevDay   ? byDate[prevDay].sumPQ   / byDate[prevDay].sumQ   : null;
+  // Day-over-day change from the daily series.
+  const daily = m?.daily || [];
+  const prev = daily.length >= 2 ? daily[daily.length-2].price : null;
   const chgPct = (latest != null && prev) ? Math.round((latest - prev) / prev * 100) : null;
 
-  // 1 公斤 = 0.6 台斤 → price per 台斤 = price per 公斤 × 0.6
+  // 1 公斤 = 0.6 台斤
   const taikinPrice = latest != null ? latest * 0.6 : null;
-  // Estimated retail = wholesale × 2 (industry rule of thumb: 口徑A = 批發×2)
+  // Industry rule: retail ≈ wholesale × 2
   const retailKg = latest != null ? Math.round(latest * 2) : null;
   const retailTaikin = taikinPrice != null ? Math.round(taikinPrice * 2) : null;
 
-  // Suggestion logic: low chgPct → buy; high recent price → cautious sell
-  const buyTag = (chgPct != null && chgPct < 0) ? { label:'推薦購買', bg:'#a5dba6', fg:'#2c5d2e' }
-              : { label:'價格平穩', bg:'#f3d27a', fg:'#7a5418' };
-  const sellTag = (chgPct != null && chgPct > 5) ? { label:'高價時機', bg:'#f6a99a', fg:'#7a261a' }
-              : (chgPct != null && chgPct < -5) ? { label:'較弱價格', bg:'#f6a99a', fg:'#7a261a' }
-              : { label:'觀望', bg:'#f3d27a', fg:'#7a5418' };
+  const buyTag  = (chgPct != null && chgPct <  0) ? { label:'推薦購買', bg:'#a5dba6', fg:'#2c5d2e' }
+                : (chgPct != null && chgPct >  10) ? { label:'高點觀望', bg:'#f3d27a', fg:'#7a5418' }
+                : { label:'價格平穩', bg:'#f3d27a', fg:'#7a5418' };
+  const sellTag = (chgPct != null && chgPct >  5) ? { label:'高價時機', bg:'#a5dba6', fg:'#2c5d2e' }
+                : (chgPct != null && chgPct < -5) ? { label:'較弱價格', bg:'#f6a99a', fg:'#7a261a' }
+                : { label:'觀望', bg:'#f3d27a', fg:'#7a5418' };
 
   const fmt = v => (v == null ? '—' : v.toLocaleString('zh-TW', {maximumFractionDigits:2}));
 
@@ -511,7 +480,7 @@ const PricePanelCard = () => {
       <div style={{background:'#fff5e8', borderRadius:10, padding:'8px 12px', boxShadow:'0 1px 0 #f0e0c8'}}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
           <div style={{fontSize:'1.05cqw', fontWeight:900, color:'#a85a16', letterSpacing:1}}>價格面板 (AMIS)</div>
-          <div style={{fontSize:'0.65cqw', color:'#a89070'}}>{latestDay ? `2026/${ROC_TO_MD(latestDay)}` : ''}</div>
+          <div style={{fontSize:'0.65cqw', color:'#a89070'}}>{latestDate ? latestDate.replace(/-/g,'/') : ''}</div>
         </div>
         <div style={{marginTop:4, display:'flex', alignItems:'baseline', gap:10}}>
           <div style={{fontSize:'0.85cqw', color:'#7a5418', fontWeight:700}}>最新均價</div>
@@ -545,28 +514,24 @@ const PricePanelCard = () => {
   );
 };
 
-/* ── CARD 2: 批發市場行情趨勢圖 ─────────────────────────────────────────── */
+/* ── CARD 2: 批發市場行情趨勢圖 (toggle 每週/每月/一年/每年) ──────────── */
 const TrendChartCard = () => {
-  const { data } = useAmisData('番茄');
+  const m = useTomatoMarket();
+  const [period, setPeriod] = useState('weekly');
   const canvasRef = React.useRef(null);
   const chartRef  = React.useRef(null);
 
   React.useEffect(() => {
-    if (!data || !window.Chart || !canvasRef.current) return;
-    const rows = data.filter(r => r.CropName === '番茄-牛番茄');
-    const byDate = {};
-    for (const r of rows) {
-      const d = r.TransDate, p = +r.Avg_Price, q = +r.Trans_Quantity || 0;
-      if (!d || !(p > 0)) continue;
-      if (!byDate[d]) byDate[d] = { sumPQ: 0, sumQ: 0, totalQ: 0 };
-      byDate[d].sumPQ  += p * (q || 1);
-      byDate[d].sumQ   += (q || 1);
-      byDate[d].totalQ += q;
-    }
-    const days = Object.keys(byDate).sort();
-    const labels = days.map(ROC_TO_MD);
-    const prices = days.map(d => Math.round(byDate[d].sumPQ / byDate[d].sumQ * 10) / 10);
-    const volumes = days.map(d => Math.round(byDate[d].totalQ));
+    if (!m || !window.Chart || !canvasRef.current) return;
+    // '一年' = last 52 weeks of weekly series; '每週' = full weekly series
+    let entries, priceLabel;
+    if (period === 'weekly')      { entries = m.weekly;  priceLabel = '每週均價 (NTD/公斤)'; }
+    else if (period === 'monthly'){ entries = m.monthly; priceLabel = '每月均價 (NTD/公斤)'; }
+    else if (period === 'year52') { entries = m.weekly.slice(-52); priceLabel = '每週均價 (NTD/公斤)'; }
+    else                          { entries = m.yearly;  priceLabel = '每年均價 (NTD/公斤)'; }
+    const labels = entries.map(e => e.key || e.date);
+    const prices = entries.map(e => e.price);
+    const volumes = entries.map(e => e.volume);
 
     if (chartRef.current) chartRef.current.destroy();
     chartRef.current = new window.Chart(canvasRef.current, {
@@ -574,8 +539,8 @@ const TrendChartCard = () => {
       data: {
         labels,
         datasets: [
-          { label:'交易量 (KG)', data: volumes, backgroundColor:'rgba(168,213,176,0.55)', borderColor:'rgba(168,213,176,1)', borderWidth:1, yAxisID:'y2', order:2 },
-          { label:'每週均價 (NTD/公斤)', data: prices, type:'line', borderColor:'#3578d4', backgroundColor:'#3578d4', tension:0.25, pointRadius:3, pointHoverRadius:6, borderWidth:2.5, yAxisID:'y1', order:1 },
+          { label:'交易量 (KG)', data: volumes, backgroundColor:'rgba(168,213,176,0.55)', borderColor:'rgba(168,213,176,1)', borderWidth:0, yAxisID:'y2', order:2 },
+          { label: priceLabel, data: prices, type:'line', borderColor:'#3578d4', backgroundColor:'#3578d4', tension:0.25, pointRadius: period==='weekly' ? 1.5 : 3, pointHoverRadius:6, borderWidth:2, yAxisID:'y1', order:1 },
         ],
       },
       options: {
@@ -586,14 +551,16 @@ const TrendChartCard = () => {
           tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${ctx.raw?.toLocaleString('zh-TW') ?? '—'}` } },
         },
         scales: {
-          x: { ticks:{font:{size:10}, color:'#666'}, grid:{display:false} },
+          x: { ticks:{font:{size:10}, color:'#666', maxRotation:60, autoSkip:true,
+                       maxTicksLimit: period==='weekly' ? 14 : period==='monthly' ? 12 : period==='yearly' ? 11 : 12},
+               grid:{display:false} },
           y1:{ position:'left',  title:{display:true,text:'價格 (NTD/公斤)',font:{size:10},color:'#666'}, ticks:{font:{size:10},color:'#666'}, grid:{color:'rgba(0,0,0,0.05)'} },
-          y2:{ position:'right', title:{display:true,text:'交易量 (KG)',font:{size:10},color:'#666'}, ticks:{font:{size:10},color:'#666'}, grid:{drawOnChartArea:false} },
+          y2:{ position:'right', title:{display:true,text:'交易量 (KG)',font:{size:10},color:'#666'}, ticks:{font:{size:10},color:'#666',callback:v=>v>=1e6?(v/1e6).toFixed(0)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v}, grid:{drawOnChartArea:false} },
         },
       },
     });
     return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-  }, [data]);
+  }, [m, period]);
 
   return (
     <div style={{
@@ -612,7 +579,18 @@ const TrendChartCard = () => {
     }}>
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
         <div style={{fontSize:'1.15cqw', fontWeight:900, color:'#5a7028', letterSpacing:1.5}}>批發市場行情趨勢圖</div>
-        <div style={{fontSize:'0.65cqw', color:'#a8a880'}}>(API 限制：僅最新 ~4 日)</div>
+        <div style={{display:'flex', gap:6}}>
+          {[['weekly','每週'],['monthly','每月'],['year52','一年'],['yearly','每年']].map(([k, label]) => (
+            <button key={k} onClick={()=>setPeriod(k)} style={{
+              fontSize:'0.75cqw', padding:'3px 12px',
+              border:'1px solid '+(period===k?'#7a8c2a':'#d8dcc0'),
+              background: period===k ? '#bcc865' : '#fefef0',
+              color: period===k ? '#3d4a10' : '#7a8c2a',
+              borderRadius:14, cursor:'pointer',
+              fontFamily:'inherit', fontWeight:700,
+            }}>{label}</button>
+          ))}
+        </div>
       </div>
       <div style={{flex:1, background:'#fff', border:'1px solid #e3e6cd', borderRadius:10, padding:'8px 10px', position:'relative', minHeight:0}}>
         <canvas ref={canvasRef}/>
@@ -623,22 +601,15 @@ const TrendChartCard = () => {
 
 /* ── CARD 3: 批發市場成交量比較 ─────────────────────────────────────────── */
 const VolumeBarsCard = () => {
-  const { data } = useAmisData('番茄');
+  const m = useTomatoMarket();
   const canvasRef = React.useRef(null);
   const chartRef  = React.useRef(null);
 
   React.useEffect(() => {
-    if (!data || !window.Chart || !canvasRef.current) return;
-    const rows = data.filter(r => r.CropName === '番茄-牛番茄');
-    const byMarket = {};
-    for (const r of rows) {
-      const m = r.MarketName, q = +r.Trans_Quantity || 0;
-      if (!m) continue;
-      byMarket[m] = (byMarket[m] || 0) + q;
-    }
-    const sorted = Object.entries(byMarket).sort((a,b) => b[1]-a[1]);
-    const labels = sorted.map(([m]) => m);
-    const vols   = sorted.map(([,v]) => Math.round(v));
+    if (!m || !window.Chart || !canvasRef.current) return;
+    const list = (m.market_compare?.markets_volume) || [];
+    const labels = list.map(x => x.market);
+    const vols   = list.map(x => Math.round(x.volume));
 
     if (chartRef.current) chartRef.current.destroy();
     chartRef.current = new window.Chart(canvasRef.current, {
@@ -657,7 +628,7 @@ const VolumeBarsCard = () => {
       },
     });
     return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-  }, [data]);
+  }, [m]);
 
   return (
     <div style={{
@@ -676,7 +647,7 @@ const VolumeBarsCard = () => {
     }}>
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
         <div style={{fontSize:'1.15cqw', fontWeight:900, color:'#256b78', letterSpacing:1.5}}>批發市場成交量比較</div>
-        <div style={{fontSize:'0.65cqw', color:'#7a9a9e'}}>(當月交易日累積)</div>
+        <div style={{fontSize:'0.65cqw', color:'#7a9a9e'}}>(當月交易日累積{m?.market_compare?.month ? '・' + m.market_compare.month : ''})</div>
       </div>
       <div style={{flex:1, background:'#fff', border:'1px solid #cfe3e7', borderRadius:10, padding:'8px 10px', position:'relative', minHeight:0}}>
         <canvas ref={canvasRef}/>
@@ -687,26 +658,15 @@ const VolumeBarsCard = () => {
 
 /* ── CARD 4: 批發市場價格比較 ───────────────────────────────────────────── */
 const PriceBarsCard = () => {
-  const { data } = useAmisData('番茄');
+  const m = useTomatoMarket();
   const canvasRef = React.useRef(null);
   const chartRef  = React.useRef(null);
 
   React.useEffect(() => {
-    if (!data || !window.Chart || !canvasRef.current) return;
-    const rows = data.filter(r => r.CropName === '番茄-牛番茄');
-    const byMarket = {};
-    for (const r of rows) {
-      const m = r.MarketName, p = +r.Avg_Price, q = +r.Trans_Quantity || 0;
-      if (!m || !(p > 0)) continue;
-      if (!byMarket[m]) byMarket[m] = { sumPQ: 0, sumQ: 0 };
-      byMarket[m].sumPQ += p * (q || 1);
-      byMarket[m].sumQ  += (q || 1);
-    }
-    const sorted = Object.entries(byMarket)
-      .map(([m, v]) => [m, v.sumPQ / v.sumQ])
-      .sort((a,b) => a[1] - b[1]);
-    const labels = sorted.map(([m]) => m);
-    const prices = sorted.map(([,p]) => Math.round(p * 10) / 10);
+    if (!m || !window.Chart || !canvasRef.current) return;
+    const list = (m.market_compare?.markets_price) || [];
+    const labels = list.map(x => x.market);
+    const prices = list.map(x => Math.round(x.price * 10) / 10);
 
     if (chartRef.current) chartRef.current.destroy();
     chartRef.current = new window.Chart(canvasRef.current, {
@@ -725,7 +685,7 @@ const PriceBarsCard = () => {
       },
     });
     return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-  }, [data]);
+  }, [m]);
 
   return (
     <div style={{

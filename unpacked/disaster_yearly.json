@@ -1,0 +1,17 @@
+{
+  "source": "https://data.moa.gov.tw/open_search.aspx?id=G97",
+  "metric": "全台農作物災損金額",
+  "unit": "億元",
+  "quantity_unit": "公噸",
+  "updated_at": "2026-04-26T22:46:00+08:00",
+  "yearly": [
+    {"year": 2016, "loss_100m_ntd": 272.84, "loss_qty_ton": 918055.10},
+    {"year": 2017, "loss_100m_ntd": 39.73, "loss_qty_ton": 119660.78},
+    {"year": 2018, "loss_100m_ntd": 44.72, "loss_qty_ton": 144388.98},
+    {"year": 2019, "loss_100m_ntd": 97.80, "loss_qty_ton": 233470.46},
+    {"year": 2020, "loss_100m_ntd": 32.54, "loss_qty_ton": 98846.42},
+    {"year": 2021, "loss_100m_ntd": 156.17, "loss_qty_ton": 396575.92},
+    {"year": 2022, "loss_100m_ntd": 89.58, "loss_qty_ton": 212447.47},
+    {"year": 2023, "loss_100m_ntd": 129.44, "loss_qty_ton": 336665.16}
+  ]
+}
