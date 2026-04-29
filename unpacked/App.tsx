@@ -406,14 +406,13 @@ const Page = ({selected, onSelect}) => {
       </svg>
 
       {/* Animated mascot video — replaces the 3-mascot still in the middle.
-          The static image's mascots span x=288-1120, y=1092-1425; we cover a
-          slightly wider area (270-1170, 1050-1500) with a solid-white panel
-          and centre the video on top so no original arm/leg pokes through.   */}
+          Full-width white panel (covers the entire row in the background image)
+          with the video centred via objectFit:contain.                         */}
       <div style={{
         position:'absolute',
-        left:   `${270/1440*100}%`,
+        left:   0,
         top:    `${1050/2996*100}%`,
-        width:  `${(1170-270)/1440*100}%`,
+        width:  '100%',
         height: `${(1500-1050)/2996*100}%`,
         background:'#ffffff',
         overflow:'hidden',
