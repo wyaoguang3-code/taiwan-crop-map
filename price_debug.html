@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>農產品批發價即時查詢 — debug</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+         background:#f4efe5; color:#333; padding: 24px; }
+  h1 { color:#3b6826; margin: 0 0 4px; font-size: 24px; letterSpacing: 1px; }
+  .subtitle { color:#7a7a6a; font-size: 13px; margin-bottom: 20px; }
+  .controls { display:flex; flex-wrap:wrap; gap: 12px; align-items: center;
+              margin-bottom: 18px; padding: 14px 16px; background:#fff;
+              border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .controls label { font-size: 13px; color:#555; display:flex; gap: 6px; align-items: center; }
+  .controls input, .controls select { font: inherit; padding: 6px 10px;
+              border: 1px solid #d4caa8; border-radius: 8px; background: #fbf6e9; }
+  .controls button { font: inherit; padding: 7px 16px; background:#3b6826;
+              color:white; border:none; border-radius:8px; cursor: pointer;
+              font-weight: 700; letter-spacing: 1px; }
+  .controls button:hover { background:#4a7e2f; }
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+           gap: 12px; margin-bottom: 18px; }
+  .stat { background:#fff; padding: 14px 18px; border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .stat .label { font-size: 11px; color:#888; letterSpacing: 1px;
+                 text-transform: uppercase; }
+  .stat .value { font-size: 26px; font-weight: 900; color:#3b6826; line-height: 1.2; }
+  .stat .sub { font-size: 12px; color:#7a7a6a; margin-top: 2px; }
+  .table-wrap { background:#fff; border-radius: 12px; overflow: auto; max-height: 70vh;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { position: sticky; top: 0; background:#3b6826; color:#fbf6e9;
+             padding: 10px 12px; text-align: left; font-weight: 700; cursor: pointer;
+             user-select: none; white-space: nowrap; }
+  thead th:hover { background:#4a7e2f; }
+  thead th.sorted::after { content: '▾'; margin-left: 4px; opacity: 0.7; }
+  thead th.sorted-asc::after { content: '▴'; margin-left: 4px; opacity: 0.7; }
+  tbody tr:nth-child(even) { background:#faf6ed; }
+  tbody tr:hover { background:#f0e8d0; }
+  tbody td { padding: 8px 12px; border-bottom: 1px solid #ede5d2; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .price-up { color:#c84028; font-weight: 700; }
+  .price-down { color:#3aaa5e; font-weight: 700; }
+  .empty { padding: 40px; text-align: center; color:#999; }
+  .raw { background: #2a2a2a; color: #c8d8c0; padding: 12px 16px;
+         border-radius: 12px; margin-top: 18px; font: 12px/1.5 ui-monospace, monospace;
+         max-height: 300px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+  .raw summary { color: #f0d68a; cursor: pointer; font-weight: 700; padding: 4px 0; }
+  .err { background:#fde2e2; color:#c84028; padding:12px 16px; border-radius:8px;
+         margin-bottom: 14px; }
+  a { color:#3b6826; }
+</style>
+</head>
+<body>
+
+<h1>🍅 農產品批發價即時查詢</h1>
+<div class="subtitle">
+  資料來源：<a href="https://data.moa.gov.tw/" target="_blank">農業部農產品交易行情 API</a>
+  ・這是 <code>index.html</code> 中「今日價格」卡片實際 fetch 的同一支 API
+</div>
+
+<div class="controls">
+  <label>作物：
+    <select id="crop">
+      <option>番茄</option><option>彩椒</option><option>菠菜</option>
+      <option>南瓜</option><option>洋蔥</option><option>蘿蔔</option>
+      <option>茄子</option><option>花椰菜</option><option>鳳梨</option>
+      <option>高麗菜</option><option>香蕉</option><option>木瓜</option>
+    </select>
+  </label>
+  <label>起始：<input type="date" id="start"></label>
+  <label>結束：<input type="date" id="end"></label>
+  <label>市場：
+    <select id="market"><option value="">全部</option></select>
+  </label>
+  <label>品種：
+    <select id="variety"><option value="">全部</option></select>
+  </label>
+  <button id="reload">重新查詢</button>
+  <span id="status" style="font-size:12px; color:#888;"></span>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<div class="table-wrap">
+  <table id="tbl">
+    <thead><tr>
+      <th data-k="TransDate">交易日</th>
+      <th data-k="CropName">品種</th>
+      <th data-k="MarketName">市場</th>
+      <th data-k="Upper_Price">上價 ↑</th>
+      <th data-k="Middle_Price">中價</th>
+      <th data-k="Lower_Price">下價 ↓</th>
+      <th data-k="Avg_Price">均價</th>
+      <th data-k="Trans_Quantity">交易量 (kg)</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<details class="raw">
+  <summary>▸ 原始 JSON 回應（按開查看）</summary>
+  <div id="raw"></div>
+</details>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmtNum = n => n == null ? '—' : Number(n).toLocaleString('zh-TW',{maximumFractionDigits:1});
+const today = new Date();
+const weekAgo = new Date(today - 7*86400000);
+const iso = d => d.toISOString().slice(0,10);
+$('end').value = iso(today);
+$('start').value = iso(weekAgo);
+
+let _data = [];
+let _sortKey = 'TransDate';
+let _sortDir = -1;
+
+async function load() {
+  const crop = $('crop').value;
+  const s = $('start').value;
+  const e = $('end').value;
+  $('status').textContent = '查詢中…';
+  try {
+    const url = `https://data.moa.gov.tw/api/v1/AgriProductsTransType/?Start-Date=${s}&End-Date=${e}&CropName=${encodeURIComponent(crop)}`;
+    const r = await fetch(url);
+    const j = await r.json();
+    _data = j.Data || j || [];
+    if (!Array.isArray(_data)) _data = [];
+    $('status').textContent = `共 ${_data.length} 筆 (${s} → ${e})`;
+    $('raw').textContent = JSON.stringify(j, null, 2);
+    rebuildFilters();
+    render();
+  } catch (err) {
+    $('status').textContent = '';
+    document.body.insertAdjacentHTML('afterbegin', `<div class="err">查詢失敗：${err.message}</div>`);
+  }
+}
+
+function rebuildFilters() {
+  const markets = [...new Set(_data.map(r => r.MarketName).filter(Boolean))].sort();
+  const varieties = [...new Set(_data.map(r => r.CropName).filter(Boolean))].sort();
+  $('market').innerHTML = '<option value="">全部</option>' +
+    markets.map(m => `<option>${m}</option>`).join('');
+  $('variety').innerHTML = '<option value="">全部</option>' +
+    varieties.map(v => `<option>${v}</option>`).join('');
+}
+
+function applyFilters(rows) {
+  const m = $('market').value;
+  const v = $('variety').value;
+  return rows.filter(r =>
+    (!m || r.MarketName === m) &&
+    (!v || r.CropName === v) &&
+    r.Avg_Price != null
+  );
+}
+
+function summary(rows) {
+  if (!rows.length) return null;
+  const prices = rows.map(r => +r.Avg_Price);
+  const qty = rows.reduce((s,r) => s + (+r.Trans_Quantity || 0), 0);
+  const wAvg = rows.reduce((s,r) => s + (+r.Avg_Price * (+r.Trans_Quantity||0)), 0)
+              / Math.max(qty, 1);
+  return {
+    count: rows.length,
+    minP: Math.min(...prices),
+    maxP: Math.max(...prices),
+    avgP: prices.reduce((a,b)=>a+b, 0) / prices.length,
+    wAvg, qty,
+    days: new Set(rows.map(r => r.TransDate)).size,
+  };
+}
+
+function render() {
+  const rows = applyFilters(_data);
+  const s = summary(rows);
+  $('stats').innerHTML = !s ? '<div class="stat"><div class="label">no data</div></div>' : `
+    <div class="stat"><div class="label">記錄筆數</div>
+      <div class="value">${s.count}</div>
+      <div class="sub">分佈於 ${s.days} 個交易日</div></div>
+    <div class="stat"><div class="label">加權均價 (kg)</div>
+      <div class="value">$${fmtNum(s.wAvg)}</div>
+      <div class="sub">以交易量加權</div></div>
+    <div class="stat"><div class="label">簡單均價</div>
+      <div class="value">$${fmtNum(s.avgP)}</div>
+      <div class="sub">範圍 $${fmtNum(s.minP)} – $${fmtNum(s.maxP)}</div></div>
+    <div class="stat"><div class="label">總交易量</div>
+      <div class="value">${fmtNum(s.qty)}</div>
+      <div class="sub">公斤</div></div>`;
+
+  rows.sort((a,b) => {
+    const va = a[_sortKey], vb = b[_sortKey];
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * _sortDir;
+    return String(va).localeCompare(String(vb)) * _sortDir;
+  });
+
+  const tbody = $('tbl').querySelector('tbody');
+  tbody.innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td>${r.TransDate || '—'}</td>
+      <td>${r.CropName || '—'}</td>
+      <td>${r.MarketName || '—'}</td>
+      <td class="num price-up">${fmtNum(r.Upper_Price)}</td>
+      <td class="num">${fmtNum(r.Middle_Price)}</td>
+      <td class="num price-down">${fmtNum(r.Lower_Price)}</td>
+      <td class="num"><strong>${fmtNum(r.Avg_Price)}</strong></td>
+      <td class="num">${fmtNum(r.Trans_Quantity)}</td>
+    </tr>`).join('') : '<tr><td colspan="8" class="empty">無資料（試試擴大日期範圍）</td></tr>';
+
+  document.querySelectorAll('thead th').forEach(th => {
+    th.classList.remove('sorted', 'sorted-asc');
+    if (th.dataset.k === _sortKey) {
+      th.classList.add(_sortDir === -1 ? 'sorted' : 'sorted-asc');
+    }
+  });
+}
+
+document.querySelectorAll('thead th').forEach(th => {
+  th.addEventListener('click', () => {
+    const k = th.dataset.k;
+    if (_sortKey === k) _sortDir *= -1;
+    else { _sortKey = k; _sortDir = -1; }
+    render();
+  });
+});
+
+['crop','start','end'].forEach(id => $(id).addEventListener('change', load));
+['market','variety'].forEach(id => $(id).addEventListener('change', render));
+$('reload').addEventListener('click', load);
+load();
+</script>
+</body>
+</html>

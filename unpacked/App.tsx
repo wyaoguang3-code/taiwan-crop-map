@@ -4,7 +4,10 @@ const { useState, useRef } = React;
 /* ── REGION DATA ─────────────────────────────────────────── */
 const REGIONS_DATA = {
   taipei:    { name:'台北市',  charType:'leafy',     mascotName:'菠菜寶寶',   mascotDesc:'哈囉！我是來自台北的菠菜寶寶！這裡氣候溫和濕潤，很適合葉菜類生長，快來看看今天的天氣和市場資訊吧！', coords:[25.0330,121.5654], cropApi:'菠菜',   weather:{temp:24,desc:'晴時多雲',hum:72,rain:15,fore:[{l:'明天',t:23,icon:'cloud'},{l:'後天',t:22,icon:'cloud'},{l:'週五',t:25,icon:'sun'}]}, price:{val:45,chg:2}, tips:['喜歡涼爽潮濕環境','需要充足水分','土壤保持濕潤','定期施肥促進生長'], crops:[{name:'高麗菜寶寶',type:'leafy'},{name:'番茄寶寶',type:'tomato'},{name:'青椒寶寶',type:'bellpepper'},{name:'韭菜寶寶',type:'leafy'},{name:'芹菜寶寶',type:'leafy'}] },
-  taoyuan:   { name:'桃園市',  charType:'tomato',    mascotName:'番茄寶寶',   mascotDesc:'哈囉！我是來自桃園的番茄寶寶！這裡土壤肥沃，陽光充足，是我最愛的家鄉！', coords:[24.9937,121.3010], cropApi:'番茄', weather:{temp:26,desc:'晴天',hum:65,rain:5,fore:[{l:'明天',t:25,icon:'sun'},{l:'後天',t:24,icon:'sun'},{l:'週五',t:26,icon:'cloud'}]}, price:{val:65,chg:-2}, tips:['喜歡充足日照','土壤排水要良好','適當修剪枝葉','定期充足澆水'], crops:[{name:'番茄寶寶',type:'tomato'},{name:'草莓寶寶',type:'tomato'},{name:'高麗菜寶寶',type:'leafy'},{name:'蘿蔔寶寶',type:'radish'},{name:'花椰菜寶寶',type:'broccoli'}] },
+  // priceMarket intentionally omitted — 桃農 only trades 牛番茄 ~2 days/month,
+  // so we drop the market filter and use the national volume-weighted average
+  // (still scoped to 牛番茄 品種).
+  taoyuan:   { name:'桃園市',  charType:'tomato',    mascotName:'番茄寶寶',   mascotDesc:'哈囉！我是來自桃園的番茄寶寶！這裡土壤肥沃，陽光充足，是我最愛的家鄉！', coords:[24.9937,121.3010], cropApi:'番茄', priceVariety:'番茄-牛番茄', weather:{temp:26,desc:'晴天',hum:65,rain:5,fore:[{l:'明天',t:25,icon:'sun'},{l:'後天',t:24,icon:'sun'},{l:'週五',t:26,icon:'cloud'}]}, price:{val:65,chg:-2}, tips:['喜歡充足日照','土壤排水要良好','適當修剪枝葉','定期充足澆水'], crops:[{name:'番茄寶寶',type:'tomato'},{name:'草莓寶寶',type:'tomato'},{name:'高麗菜寶寶',type:'leafy'},{name:'蘿蔔寶寶',type:'radish'},{name:'花椰菜寶寶',type:'broccoli'}] },
   yilan:     { name:'宜蘭縣',  charType:'radish',    mascotName:'白蘿蔔寶寶', mascotDesc:'哈囉！我是來自宜蘭的白蘿蔔寶寶！這裡雨水充足，土壤深厚肥沃，很適合根莖類作物生長！', coords:[24.7021,121.7377], cropApi:'蘿蔔', weather:{temp:22,desc:'多雲有雨',hum:85,rain:45,fore:[{l:'明天',t:22,icon:'cloud'},{l:'後天',t:21,icon:'cloud'},{l:'週五',t:23,icon:'cloud'}]}, price:{val:35,chg:1}, tips:['喜歡涼爽環境','需要深層土壤','保持土壤濕潤','注意排水良好'], crops:[{name:'白蘿蔔寶寶',type:'radish'},{name:'芋頭寶寶',type:'radish'},{name:'蔥寶寶',type:'onion'},{name:'高麗菜寶寶',type:'leafy'},{name:'青椒寶寶',type:'bellpepper'}] },
   taichung:  { name:'台中市',  charType:'pumpkin',   mascotName:'南瓜寶寶',   mascotDesc:'哈囉！我是來自台中的南瓜寶寶！這裡氣候適中溫暖，讓我長得又大又圓，超開心的！', coords:[24.1477,120.6736], cropApi:'南瓜', weather:{temp:27,desc:'多雲',hum:68,rain:12,fore:[{l:'明天',t:26,icon:'cloud'},{l:'後天',t:25,icon:'sun'},{l:'週五',t:27,icon:'sun'}]}, price:{val:55,chg:3}, tips:['喜歡充足日照','土壤排水良好','適量澆水','定期施有機肥'], crops:[{name:'南瓜寶寶',type:'pumpkin'},{name:'玉米寶寶',type:'corn'},{name:'高麗菜寶寶',type:'leafy'},{name:'番茄寶寶',type:'tomato'},{name:'洋蔥寶寶',type:'onion'}] },
   hualien:   { name:'花蓮縣',  charType:'eggplant',  mascotName:'茄子寶寶',   mascotDesc:'哈囉！我是來自花蓮的茄子寶寶！這裡有潔淨的空氣和肥沃土壤，讓我健康美麗的成長！', coords:[23.9871,121.6015], cropApi:'茄子', weather:{temp:26,desc:'晴天',hum:70,rain:8,fore:[{l:'明天',t:25,icon:'sun'},{l:'後天',t:26,icon:'sun'},{l:'週五',t:27,icon:'sun'}]}, price:{val:48,chg:-1}, tips:['喜歡溫暖環境','需要充足日照','保持土壤適當濕度','注意防止病蟲害'], crops:[{name:'茄子寶寶',type:'eggplant'},{name:'番茄寶寶',type:'tomato'},{name:'辣椒寶寶',type:'bellpepper'},{name:'苦瓜寶寶',type:'pumpkin'},{name:'南瓜寶寶',type:'pumpkin'}] },
@@ -222,10 +225,89 @@ const AsparagusChar = ({cx=0,cy=0,s=1}) => (
   </g>
 );
 
+/* Persimmon — orange round with brown calyx */
+const PersimmonChar = ({cx=0,cy=0,s=1}) => (
+  <g transform={`translate(${cx},${cy}) scale(${s})`}>
+    <ellipse cx="-30" cy="6" rx="10" ry="13" fill="#e87838" transform="rotate(-25,-30,6)"/>
+    <ellipse cx="30" cy="6" rx="10" ry="13" fill="#e87838" transform="rotate(25,30,6)"/>
+    <circle cx="0" cy="5" r="27" fill="#ec7d33"/>
+    <ellipse cx="-7" cy="-4" rx="9" ry="13" fill="#f49853" opacity="0.4"/>
+    <ellipse cx="-9" cy="-22" rx="9" ry="6" fill="#7d5a3a" transform="rotate(-30,-9,-22)"/>
+    <ellipse cx="9" cy="-22" rx="9" ry="6" fill="#7d5a3a" transform="rotate(30,9,-22)"/>
+    <ellipse cx="0" cy="-24" rx="6" ry="7" fill="#8c6a4a"/>
+    <ellipse cx="0" cy="-28" rx="3" ry="5" fill="#5a4530"/>
+    <circle cx="-9" cy="3" r="4" fill="#222"/>
+    <circle cx="9" cy="3" r="4" fill="#222"/>
+    <circle cx="-7.2" cy="2" r="1.5" fill="white"/>
+    <circle cx="10.8" cy="2" r="1.5" fill="white"/>
+    <path d="M-5 13 Q0 18 5 13" stroke="#222" strokeWidth="2" fill="none" strokeLinecap="round"/>
+    <ellipse cx="-15" cy="9" rx="6" ry="4" fill="#c84028" opacity="0.32"/>
+    <ellipse cx="15" cy="9" rx="6" ry="4" fill="#c84028" opacity="0.32"/>
+    <ellipse cx="-11" cy="34" rx="9" ry="6" fill="#c75a25"/>
+    <ellipse cx="11" cy="34" rx="9" ry="6" fill="#c75a25"/>
+  </g>
+);
+
+/* Melon — light green netted with leaf */
+const MelonChar = ({cx=0,cy=0,s=1}) => (
+  <g transform={`translate(${cx},${cy}) scale(${s})`}>
+    <ellipse cx="-30" cy="6" rx="10" ry="13" fill="#9ec665" transform="rotate(-25,-30,6)"/>
+    <ellipse cx="30" cy="6" rx="10" ry="13" fill="#9ec665" transform="rotate(25,30,6)"/>
+    <circle cx="0" cy="5" r="27" fill="#abd472"/>
+    <ellipse cx="-7" cy="-4" rx="9" ry="13" fill="#c5e290" opacity="0.5"/>
+    {/* netting lines */}
+    <path d="M-22 -10 Q 0 -8 22 -10" stroke="#7aa850" strokeWidth="1.2" fill="none" opacity="0.55"/>
+    <path d="M-25 5 Q 0 8 25 5" stroke="#7aa850" strokeWidth="1.2" fill="none" opacity="0.55"/>
+    <path d="M-22 18 Q 0 21 22 18" stroke="#7aa850" strokeWidth="1.2" fill="none" opacity="0.55"/>
+    <path d="M-10 -22 Q -8 5 -10 28" stroke="#7aa850" strokeWidth="1.2" fill="none" opacity="0.45"/>
+    <path d="M10 -22 Q 8 5 10 28" stroke="#7aa850" strokeWidth="1.2" fill="none" opacity="0.45"/>
+    {/* stem & leaf */}
+    <rect x="-2.5" y="-30" width="5" height="9" rx="2.5" fill="#5a8a3a"/>
+    <ellipse cx="9" cy="-30" rx="9" ry="5" fill="#7ab848" transform="rotate(35,9,-30)"/>
+    <circle cx="-9" cy="3" r="4" fill="#222"/>
+    <circle cx="9" cy="3" r="4" fill="#222"/>
+    <circle cx="-7.2" cy="2" r="1.5" fill="white"/>
+    <circle cx="10.8" cy="2" r="1.5" fill="white"/>
+    <path d="M-5 13 Q0 18 5 13" stroke="#222" strokeWidth="2" fill="none" strokeLinecap="round"/>
+    <ellipse cx="-15" cy="9" rx="6" ry="4" fill="#e89858" opacity="0.4"/>
+    <ellipse cx="15" cy="9" rx="6" ry="4" fill="#e89858" opacity="0.4"/>
+    <ellipse cx="-11" cy="34" rx="9" ry="6" fill="#88b250"/>
+    <ellipse cx="11" cy="34" rx="9" ry="6" fill="#88b250"/>
+  </g>
+);
+
+/* Bamboo shoot — tapered cone with green leaves on top */
+const BambooShootChar = ({cx=0,cy=0,s=1}) => (
+  <g transform={`translate(${cx},${cy}) scale(${s})`}>
+    <ellipse cx="-26" cy="8" rx="9" ry="13" fill="#ecdcb0" transform="rotate(-25,-26,8)"/>
+    <ellipse cx="26" cy="8" rx="9" ry="13" fill="#ecdcb0" transform="rotate(25,26,8)"/>
+    <path d="M -22 32 L -16 -8 L -8 -28 L 0 -38 L 8 -28 L 16 -8 L 22 32 Z" fill="#f0deb0"/>
+    <ellipse cx="-7" cy="-4" rx="6" ry="22" fill="#fff5d8" opacity="0.45"/>
+    <path d="M -18 14 Q 0 11 18 14" stroke="#cdb888" strokeWidth="1.4" fill="none"/>
+    <path d="M -14 -2 Q 0 -5 14 -2" stroke="#cdb888" strokeWidth="1.2" fill="none"/>
+    <path d="M -10 -16 Q 0 -19 10 -16" stroke="#cdb888" strokeWidth="1" fill="none"/>
+    {/* top leaves */}
+    <path d="M -10 -28 L -5 -50 L 2 -32 Z" fill="#7aaa48"/>
+    <path d="M -2 -32 L 1 -55 L 7 -32 Z" fill="#5a9838"/>
+    <path d="M 2 -32 L 9 -48 L 12 -28 Z" fill="#7aaa48"/>
+    <path d="M -12 -26 L -10 -42 L -5 -28 Z" fill="#6aa040"/>
+    <circle cx="-7" cy="3" r="3.5" fill="#222"/>
+    <circle cx="7" cy="3" r="3.5" fill="#222"/>
+    <circle cx="-5.5" cy="2" r="1.3" fill="white"/>
+    <circle cx="8.5" cy="2" r="1.3" fill="white"/>
+    <path d="M-4 11 Q0 15 4 11" stroke="#222" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+    <ellipse cx="-13" cy="8" rx="5" ry="3" fill="#e89858" opacity="0.4"/>
+    <ellipse cx="13" cy="8" rx="5" ry="3" fill="#e89858" opacity="0.4"/>
+    <ellipse cx="-9" cy="36" rx="8" ry="5" fill="#d4c290"/>
+    <ellipse cx="9" cy="36" rx="8" ry="5" fill="#d4c290"/>
+  </g>
+);
+
 const CHAR_COMPS = { leafy:LeafyChar, tomato:TomatoChar, bellpepper:BellPepperChar,
   eggplant:EggplantChar, pumpkin:PumpkinChar, broccoli:BroccoliChar,
   pineapple:PineappleChar, radish:RadishChar, onion:OnionChar,
-  corn:CornChar, asparagus:AsparagusChar };
+  corn:CornChar, asparagus:AsparagusChar,
+  persimmon:PersimmonChar, melon:MelonChar, bamboo:BambooShootChar };
 
 const CharSVG = ({type, cx=0, cy=0, s=1}) => {
   const C = CHAR_COMPS[type];
@@ -430,52 +512,84 @@ const PRICE_FALLBACK = {
   '鳳梨':   { price: 75,  chgPct: 6,  sparkVals: [66,68,71,73,75] },
 };
 
-const PriceOverlay = ({cropName}) => {
+const PriceOverlay = ({cropName, variety, market, style}) => {
   // Initial render uses the static fallback so the card never blanks out while fetching.
   const initial = PRICE_FALLBACK[cropName] || PRICE_FALLBACK['彩椒'];
   const [data, setData] = React.useState(initial);
 
   React.useEffect(() => {
     const fallback = PRICE_FALLBACK[cropName] || PRICE_FALLBACK['彩椒'];
-    // Snap to this crop's fallback instantly — no blank state.
     setData(fallback);
     let cancelled = false;
     const fmt = d => d.toISOString().slice(0,10);
     const today = new Date();
-    const weekAgo = new Date(today - 7*86400000);
+    // 14-day window ensures we get ≥5 trading days even when there are
+    // weekends + holidays (the wholesale market doesn't trade every day).
+    const fromDate = new Date(today - 14*86400000);
 
-    // Try Taiwan COA wholesale price API
-    fetch(`https://data.moa.gov.tw/api/v1/AgriProductsTransType/?Start-Date=${fmt(weekAgo)}&End-Date=${fmt(today)}&CropName=${encodeURIComponent(cropName)}`)
+    fetch(`https://data.moa.gov.tw/api/v1/AgriProductsTransType/?Start-Date=${fmt(fromDate)}&End-Date=${fmt(today)}&CropName=${encodeURIComponent(cropName)}`)
       .then(r => r.json())
-      .then(arr => {
+      .then(json => {
         if (cancelled) return;
-        if (!arr || arr.length === 0) throw new Error('no data');
-        // Sort by date desc, get latest
-        arr.sort((a,b) => (b.Trans_Date||b.date||'').localeCompare(a.Trans_Date||a.date||''));
-        const latest = arr[0];
-        const prev = arr[1];
-        const price = Math.round(parseFloat(latest.Avg_Price || latest.avg_price || latest.AvgPrice || fallback.price));
-        const prevPrice = prev ? Math.round(parseFloat(prev.Avg_Price || prev.avg_price || fallback.price)) : price;
-        const chgPct = prevPrice ? Math.round((price-prevPrice)/prevPrice*100) : 0;
-        // Build sparkline from last 5 data points
-        const recent = arr.slice(0,5).reverse();
-        const sparkVals = recent.map(d => Math.round(parseFloat(d.Avg_Price||d.avg_price||fallback.price)));
-        // Dates can be ROC format ("113.05.06") or ISO ("2026-05-06"); output as "M/D"
-        const sparkDates = recent.map(d => {
-          const s = String(d.Trans_Date || d.date || '').trim();
-          const parts = s.split(/[./-]/).map(x => parseInt(x, 10));
-          if (parts.length >= 3 && !isNaN(parts[1]) && !isNaN(parts[2])) {
-            return `${parts[1]}/${parts[2]}`;
-          }
-          return '';
+        // API response is { RS: "OK", Data: [...] } — unwrap. Older endpoints
+        // returned a bare array, so accept that too.
+        const records = Array.isArray(json?.Data) ? json.Data
+                      : Array.isArray(json) ? json
+                      : [];
+        if (records.length === 0) throw new Error('no data');
+
+        // Apply variety + market filters when configured. If the filter wipes
+        // everything (data gap on those days), fall through to all records so
+        // we still show *something* real instead of the static fallback.
+        let filtered = records;
+        if (variety) filtered = filtered.filter(r => r.CropName === variety);
+        if (market)  filtered = filtered.filter(r => r.MarketName === market);
+        if (filtered.length === 0) filtered = records;
+
+        // Group by trading date — multiple market-day rows are aggregated by
+        // volume-weighted average so the daily figure reflects actual trade.
+        const byDate = {};
+        for (const r of filtered) {
+          const d = String(r.TransDate || r.Trans_Date || r.date || '').trim();
+          if (!d) continue;
+          const p = parseFloat(r.Avg_Price || r.AvgPrice || r.avg_price);
+          const q = parseFloat(r.Trans_Quantity || 0);
+          if (!isFinite(p) || p <= 0) continue;
+          if (!byDate[d]) byDate[d] = { sumPQ: 0, sumQ: 0, prices: [] };
+          byDate[d].prices.push(p);
+          byDate[d].sumPQ += p * (q || 1);
+          byDate[d].sumQ  += (q || 1);
+        }
+        // ROC dates ("115.04.28") and ISO dates both sort lexicographically.
+        const days = Object.keys(byDate).sort();
+        if (days.length === 0) throw new Error('no usable data');
+
+        const dailyAvg = days.map(d => {
+          const v = byDate[d];
+          const avg = v.sumQ > 0 ? v.sumPQ / v.sumQ
+                                 : v.prices.reduce((a,b)=>a+b, 0) / v.prices.length;
+          return { date: d, price: Math.round(avg) };
         });
+
+        // Take last 5 trading days for the sparkline.
+        const recent = dailyAvg.slice(-5);
+        const sparkVals = recent.map(x => x.price);
+        const sparkDates = recent.map(x => {
+          const parts = x.date.split(/[./-]/).map(n => parseInt(n, 10));
+          return parts.length >= 3 ? `${parts[1]}/${parts[2]}` : '';
+        });
+
+        const price = sparkVals[sparkVals.length - 1];
+        const prevPrice = sparkVals.length >= 2 ? sparkVals[sparkVals.length - 2] : price;
+        const chgPct = prevPrice ? Math.round((price - prevPrice) / prevPrice * 100) : 0;
+
         setData({ price, chgPct, sparkVals, sparkDates });
       })
-      .catch(() => {
-        // Keep whatever we showed (fallback); nothing else to do.
+      .catch(err => {
+        console.warn('[price] fetch failed, keeping static fallback:', err && err.message);
       });
     return () => { cancelled = true; };
-  }, [cropName]);
+  }, [cropName, variety, market]);
 
   if (!data) return null;
 
@@ -507,18 +621,21 @@ const PriceOverlay = ({cropName}) => {
   return (
     <div style={{
       position:'absolute',
+      // Default placement matches the legacy InfoPanel layout. New TopSection
+      // passes its own coordinates via `style` to override.
       left:'37.0%', top:'38.0%',
       width:'28.2%', height:'35.2%',
-      background:'#f4f3df',
-      borderRadius:13,
-      padding:'10px 12px',
-      boxShadow:'0 2px 10px rgba(0,0,0,0.07)',
+      background:'#f5f4e1',
+      border:'1.5px solid #e3e1bd',
+      borderRadius:15,
+      padding:'12px 14px',
       display:'flex', flexDirection:'column',
       overflow:'hidden',
       fontFamily:"'Noto Sans TC',sans-serif",
+      ...style,
     }}>
-      <div style={{fontSize:11,fontWeight:700,color:'#555',marginBottom:4}}>
-        今日價格 <span style={{fontWeight:400,color:'#aaa',fontSize:9}}>(每公斤)</span>
+      <div style={{fontSize:14,fontWeight:900,color:'#3b6826',marginBottom:4,letterSpacing:1}}>
+        今日價格 <span style={{fontWeight:500,color:'#9a9a9a',fontSize:10}}>(每公斤)</span>
       </div>
       <div style={{fontSize:34,fontWeight:900,color:'#3aaa5e',lineHeight:1.1,marginBottom:2}}>
         <span style={{fontSize:16}}>$</span>{price}
@@ -551,7 +668,7 @@ const PriceOverlay = ({cropName}) => {
   );
 };
 
-/* ── INFO PANEL (static image + real weather overlay) ── */
+/* ── WEATHER OVERLAY (just the card content; parent positions it) ── */
 const WMO_DESC = {
   0:'晴天',1:'大致晴朗',2:'多雲時晴',3:'多雲',
   45:'有霧',48:'凍霧',51:'毛毛雨',53:'毛毛雨',55:'大毛毛雨',
@@ -582,14 +699,14 @@ const staticWx = (w) => ({
   fore: w.fore.map(f => ({ label: f.l, temp: f.t, code: ICON_TO_WMO[f.icon] ?? 3 })),
 });
 
-const InfoPanel = ({regionId}) => {
+// Hook: returns live weather state for the given region, with static fallback
+// rendered instantly while the real fetch is in flight.
+const useLiveWeather = (regionId) => {
   const region = REGIONS_DATA[regionId] || REGIONS_DATA.tainan;
   const [lat, lon] = region.coords;
-  // Instant render with static fallback so the card never blanks out.
   const [wx, setWx] = React.useState(() => staticWx(region.weather));
 
   React.useEffect(() => {
-    // Snap to this region's static data immediately, then upgrade with live data.
     setWx(staticWx(region.weather));
     let cancelled = false;
     fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,relative_humidity_2m,precipitation_probability&daily=weather_code,temperature_2m_max&timezone=Asia%2FTaipei&forecast_days=4`)
@@ -612,59 +729,153 @@ const InfoPanel = ({regionId}) => {
     return () => { cancelled = true; };
   }, [lat, lon]);
 
-  return (
-    <div style={{position:'relative',height:'100%',overflow:'hidden',borderRadius:'0 20px 20px 0'}}>
-      {/* Static background image — prefer a region-specific PNG if present. */}
-      <img src={(window.RIGHT_PANEL_IMGS && window.RIGHT_PANEL_IMGS[regionId]) || window.RIGHT_PANEL_IMG}
-        alt="右側面板"
-        style={{width:'100%',height:'100%',objectFit:'fill',display:'block',pointerEvents:'none'}}/>
+  return wx;
+};
 
-
-      {/* Real price overlay — positioned over the static price card */}
-      <PriceOverlay cropName={region.cropApi}/>
-      {/* Real weather overlay — positioned over the static weather card */}
-      {wx && (
-        <div style={{
-          position:'absolute',
-          left:'10.6%', top:'38.0%',
-          width:'24.4%', height:'35.2%',
-          background:'#daedf7',
-          borderRadius:13,
-          padding:'10px 12px 10px 12px',
-          boxShadow:'0 2px 10px rgba(0,0,0,0.07)',
-          display:'flex', flexDirection:'column',
-          justifyContent:'space-between',
-          overflow:'hidden',
-          fontFamily:"'Noto Sans TC',sans-serif",
-        }}>
-          {/* Top group: title + icon+temp + desc + humidity */}
-          <div>
-            <div style={{fontSize:14,fontWeight:700,color:'#4a6a8a',marginBottom:6}}>天氣預報</div>
-            <div style={{display:'flex',alignItems:'center',gap:4,marginBottom:5}}>
-              <MainWxIcon type={wmoIcon(wx.code)} size={58}/>
-              <div style={{fontSize:38,fontWeight:900,color:'#1e3a5f',lineHeight:1,letterSpacing:-0.5}}>
-                {wx.temp}<span style={{fontSize:18,fontWeight:700}}>°C</span>
-              </div>
-            </div>
-            <div style={{fontSize:13,color:'#5c7a94',textAlign:'center',marginBottom:5}}>{WMO_DESC[wx.code]||'多雲時晴'}</div>
-            <div style={{fontSize:11.5,color:'#7a98b0',display:'flex',justifyContent:'space-between',padding:'0 2px'}}>
-              <span>濕度 {wx.hum}%</span>
-              <span>降雨機率 {wx.rain}%</span>
-            </div>
-          </div>
-          {/* Forecast */}
-          <div style={{borderTop:'1px solid #b8d8ea',paddingTop:8,display:'flex',justifyContent:'space-around'}}>
-            {wx.fore.map((f,i)=>(
-              <div key={i} style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
-                <div style={{fontSize:12,color:'#7a98b0'}}>{f.label}</div>
-                <WeatherIcon type={wmoIcon(f.code)} size={38}/>
-                <div style={{fontSize:12.5,fontWeight:600,color:'#4a6a8a'}}>{f.temp}°C</div>
-              </div>
-            ))}
-          </div>
+// Weather card UI — pure presentation. Parent positions it via `style`.
+// The card uses a solid #edf2f3 background to fully cover the static figures
+// painted underneath it in the design PNG.
+const WeatherCard = ({wx, style}) => (
+  <div style={{
+    position:'absolute',
+    background:'#edf2f3',
+    border:'1.5px solid #b1c1c4',
+    borderRadius:15,
+    padding:'12px 14px',
+    display:'flex', flexDirection:'column', justifyContent:'space-between',
+    overflow:'hidden',
+    fontFamily:"'Noto Sans TC',sans-serif",
+    ...style,
+  }}>
+    <div>
+      <div style={{fontSize:14,fontWeight:900,color:'#427ea1',marginBottom:6,letterSpacing:1}}>天氣預報</div>
+      <div style={{display:'flex',alignItems:'center',gap:4,marginBottom:5}}>
+        <MainWxIcon type={wmoIcon(wx.code)} size={56}/>
+        <div style={{fontSize:38,fontWeight:900,color:'#427ea1',lineHeight:1,letterSpacing:-0.5}}>
+          {wx.temp}<span style={{fontSize:20,fontWeight:700}}>°C</span>
         </div>
-      )}
+      </div>
+      <div style={{fontSize:12,fontWeight:700,color:'#427ea1',textAlign:'center',marginBottom:5}}>{WMO_DESC[wx.code]||'多雲時晴'}</div>
+      <div style={{fontSize:11,fontWeight:700,color:'#427ea1',display:'flex',justifyContent:'space-between',padding:'0 2px'}}>
+        <span>濕度 {wx.hum}%</span>
+        <span>降雨機率 {wx.rain}%</span>
+      </div>
     </div>
+    <div style={{borderTop:'1px solid #b8d8ea',paddingTop:6,display:'flex',justifyContent:'space-around'}}>
+      {wx.fore.map((f,i)=>(
+        <div key={i} style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+          <div style={{fontSize:11,fontWeight:700,color:'#427ea1'}}>{f.label}</div>
+          <WeatherIcon type={wmoIcon(f.code)} size={32}/>
+          <div style={{fontSize:12,fontWeight:700,color:'#5d5d5d'}}>{f.temp}°C</div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+/* ── TOP SECTION (new design) ──
+   Single PNG background with live weather + price overlays positioned in
+   percentages of the 1440×920 design canvas. The image already shows 桃園
+   tomato; clicking other counties only swaps the live data overlays since the
+   static design only ships a 桃園 variant. */
+const COUNTY_HOTSPOTS = [
+  // Approximate centers within the 1440×920 design canvas
+  { id:'taipei',    cx: 412, cy: 175, r: 30, label:'台北' },
+  { id:'taoyuan',   cx: 360, cy: 200, r: 36, label:'桃園' },
+  { id:'yilan',     cx: 488, cy: 220, r: 30, label:'宜蘭' },
+  { id:'taichung',  cx: 285, cy: 380, r: 38, label:'台中' },
+  { id:'hualien',   cx: 460, cy: 430, r: 36, label:'花蓮' },
+  { id:'yunlin',    cx: 225, cy: 510, r: 30, label:'雲林' },
+  { id:'tainan',    cx: 200, cy: 660, r: 34, label:'台南' },
+  { id:'kaohsiung', cx: 295, cy: 720, r: 32, label:'高雄' },
+  { id:'pingtung',  cx: 370, cy: 800, r: 32, label:'屏東' },
+];
+
+const TopSection = ({selected, onSelect}) => {
+  const region = REGIONS_DATA[selected] || REGIONS_DATA.tainan;
+  const wx = useLiveWeather(selected);
+  const [hovered, setHovered] = React.useState(null);
+
+  return (
+    <section style={{
+      background: '#ffffff',
+      padding: '20px 20px 0',
+      display: 'flex',
+      justifyContent: 'center',
+      fontFamily:"'Noto Sans TC',sans-serif",
+    }}>
+      <div style={{
+        position: 'relative',
+        width: 'min(1440px, 100%)',
+        aspectRatio: '1440 / 920',
+      }}>
+        {/* Design background — full top section as one image */}
+        <img
+          src={(window.DESIGN_IMGS && window.DESIGN_IMGS.top_section) || ''}
+          alt=""
+          style={{
+            position:'absolute', inset:0, width:'100%', height:'100%',
+            display:'block', userSelect:'none', pointerEvents:'none',
+          }}
+        />
+
+        {/* Map click overlay — invisible hotspots over each county */}
+        <svg
+          viewBox="0 0 1440 920"
+          preserveAspectRatio="none"
+          style={{position:'absolute', inset:0, width:'100%', height:'100%'}}
+        >
+          <defs>
+            <filter id="county-glow">
+              <feGaussianBlur stdDeviation="6" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          {COUNTY_HOTSPOTS.map(z => {
+            const isSel = selected === z.id;
+            const isHov = hovered === z.id && !isSel;
+            return (
+              <g key={z.id}
+                onClick={() => onSelect(z.id)}
+                onMouseEnter={() => setHovered(z.id)}
+                onMouseLeave={() => setHovered(null)}
+                style={{cursor:'pointer'}}>
+                {(isHov || isSel) && (
+                  <circle cx={z.cx} cy={z.cy} r={z.r+6}
+                    fill={isSel ? "rgba(255,200,80,0.18)" : "rgba(255,255,255,0.32)"}
+                    filter="url(#county-glow)"/>
+                )}
+                <circle cx={z.cx} cy={z.cy} r={z.r} fill="transparent"/>
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* LIVE Weather overlay — fully covers the static "天氣預報" card.
+            Outer card edges (incl. border) in design 1440×920 coords:
+            x=712-920, y=381-696. */}
+        <WeatherCard wx={wx} style={{
+          left:   `${712/1440*100}%`,
+          top:    `${381/920*100}%`,
+          width:  `${(920-712)/1440*100}%`,
+          height: `${(696-381)/920*100}%`,
+        }}/>
+
+        {/* LIVE Price overlay — fully covers the static "今日價格" card.
+            Outer card edges in design coords: x=934-1165, y=381-696. */}
+        <PriceOverlay
+          cropName={region.cropApi}
+          variety={region.priceVariety}
+          market={region.priceMarket}
+          style={{
+            left:   `${934/1440*100}%`,
+            top:    `${381/920*100}%`,
+            width:  `${(1165-934)/1440*100}%`,
+            height: `${(696-381)/920*100}%`,
+          }}
+        />
+      </div>
+    </section>
   );
 };
 
@@ -687,28 +898,294 @@ const Legend = () => (
   </div>
 );
 
+/* ── MASCOTS ROW (original 3-mascot artwork from the design) ──
+   The source PNG has white padding + a subtle drop shadow around the artboard.
+   Figma's frame crops it via overflow:hidden + an offset/zoom, so the mascots
+   look like they sit directly on the page background. We reproduce the same
+   crop here (same percentages as the original design layout). */
+const MascotsRow = () => (
+  <section style={{
+    background: '#ffffff',
+    padding: '20px 20px 20px',
+    display: 'flex',
+    justifyContent: 'center',
+    fontFamily: "'Noto Sans TC',sans-serif",
+  }}>
+    <div style={{
+      position:'relative',
+      width:'min(1115px, 92vw)',
+      aspectRatio:'1115 / 446',
+      overflow:'hidden',
+    }}>
+      <img
+        src={(window.DESIGN_IMGS && window.DESIGN_IMGS.mascots_row) || ''}
+        alt="柿子・哈密瓜・綠竹筍寶寶"
+        style={{
+          position:'absolute',
+          width:  '112.17%',
+          height: '166.85%',
+          left:   '-6.29%',
+          top:    '-10.62%',
+          maxWidth:'none',
+          userSelect:'none',
+          pointerEvents:'none',
+        }}
+      />
+    </div>
+  </section>
+);
+
+/* ── FARMING DAILY SECTION ── */
+const FARMING_PHOTOS = [
+  // Each photo's CSS background-position % is hand-tuned to match the framing
+  // chosen in the original Figma design (where the source image is offset and
+  // scaled inside its 387×303 frame).
+  { key:'farming_1', objX:'37%', objY:'62%', scale:1.45 },
+  { key:'farming_2', objX:'50%', objY:'62%', scale:1.0  },
+  { key:'farming_3', objX:'62%', objY:'62%', scale:1.95 },
+];
+
+const FarmingDailySection = () => (
+  <section style={{
+    background: '#9ab572',
+    position: 'relative',
+    padding: '120px 0 80px',
+    width: '100%',
+    overflow: 'hidden',
+    fontFamily: "'Noto Sans TC',sans-serif",
+  }}>
+    {/* Top scalloped wave (white domes pushing up into the green) */}
+    <svg style={{position:'absolute', top: -1, left: 0, width:'100%', height: 70, display:'block'}}
+         viewBox="0 0 1440 70" preserveAspectRatio="none">
+      <path d="M0,0 L0,40 Q60,70 120,40 T240,40 T360,40 T480,40 T600,40 T720,40 T840,40 T960,40 T1080,40 T1200,40 T1320,40 T1440,40 L1440,0 Z" fill="#ffffff"/>
+    </svg>
+
+    {/* Vertical "The Island of Harvest" ribbons on sides */}
+    <div style={{position:'absolute', left: 12, top: '50%', transform:'translateY(-50%) rotate(-90deg)',
+      transformOrigin:'center', color:'#fbf6e9', fontWeight:900, fontSize:13,
+      letterSpacing:8, opacity:0.55, whiteSpace:'nowrap', userSelect:'none', pointerEvents:'none'}}>
+      THE ISLAND OF HARVEST
+    </div>
+    <div style={{position:'absolute', right: 12, top: '50%', transform:'translateY(-50%) rotate(90deg)',
+      transformOrigin:'center', color:'#fbf6e9', fontWeight:900, fontSize:13,
+      letterSpacing:8, opacity:0.55, whiteSpace:'nowrap', userSelect:'none', pointerEvents:'none'}}>
+      THE ISLAND OF HARVEST
+    </div>
+
+    {/* Decorative mascot cluster on left */}
+    <svg width="220" height="120" viewBox="0 0 220 120"
+         style={{position:'absolute', left:'4%', top:80, opacity:0.95, pointerEvents:'none'}}>
+      <TomatoChar cx={45} cy={60} s={1.7}/>
+      <OnionChar cx={110} cy={70} s={1.5}/>
+      <RadishChar cx={170} cy={68} s={1.4}/>
+    </svg>
+
+    {/* Title */}
+    <h2 style={{
+      textAlign:'center', color:'#fbf6e9', fontWeight:900,
+      fontSize:'clamp(28px, 3.4vw, 40px)', letterSpacing:'0.4em',
+      margin:'0 0 56px', position:'relative', textIndent:'0.4em',
+    }}>務農日常</h2>
+
+    {/* Photo cards — original photography from the design */}
+    <div style={{
+      display:'flex', justifyContent:'center', gap:16,
+      padding:'0 max(40px, 6vw)', position:'relative',
+      maxWidth: 1280, margin: '0 auto', flexWrap:'wrap',
+    }}>
+      {FARMING_PHOTOS.map(p => (
+        <div key={p.key} style={{
+          width: 387, maxWidth:'100%', height: 303,
+          flex: '1 1 280px',
+          border:'1.5px solid #3b6826',
+          borderRadius: 15, overflow:'hidden',
+          background:'#fff', boxShadow:'0 4px 14px rgba(0,0,0,0.08)',
+        }}>
+          <img
+            src={(window.DESIGN_IMGS && window.DESIGN_IMGS[p.key]) || ''}
+            alt="務農日常"
+            style={{
+              width:'100%', height:'100%',
+              objectFit:'cover',
+              objectPosition: `${p.objX} ${p.objY}`,
+              transform: p.scale !== 1 ? `scale(${p.scale})` : undefined,
+              userSelect:'none', pointerEvents:'none',
+            }}
+          />
+        </div>
+      ))}
+    </div>
+
+    {/* Page indicator dots */}
+    <div style={{display:'flex', justifyContent:'center', gap:8, marginTop:36, position:'relative'}}>
+      {[0,1,2,3].map(i => (
+        <div key={i} style={{
+          width: i===1 ? 22 : 8, height: 8, borderRadius: 6,
+          background: i===1 ? '#3b6826' : 'rgba(251,246,233,0.8)',
+          transition:'all 0.2s',
+        }}/>
+      ))}
+    </div>
+  </section>
+);
+
+/* ── STAR FARMERS SECTION ── */
+// Each farmer's circular portrait is a 240×240 region cut out of the original
+// 830×553 source-image layout (matching the masks defined in the Figma file).
+// `x` and `y` are the negative offsets at the design's reference 240×240 size;
+// they're applied as % of the avatar so the layout stays responsive.
+const STAR_FARMERS = [
+  { name:'阿誠伯', region:'新北五星農夫', years:28, x: -24,  y: -16  },
+  { name:'大武哥', region:'南投五星農夫', years:30, x: -295, y: -18  },
+  { name:'阿嬌姊', region:'新竹五星農夫', years:27, x: -563, y: -18  },
+  { name:'王叔',   region:'嘉義五星農夫', years:24, x: -565, y: -288 },
+  { name:'美菱姐', region:'台東五星農夫', years:18, x: -295, y: -288 },
+];
+
+const FarmerPortrait = ({offX, offY}) => {
+  const src = (window.DESIGN_IMGS && window.DESIGN_IMGS.farmers_source) || '';
+  // 830 / 240 ≈ 345.83 ; 553 / 240 ≈ 230.42
+  return (
+    <img
+      src={src}
+      alt=""
+      style={{
+        position:'absolute',
+        width: '345.83%',
+        height: '230.42%',
+        left: `${(offX/240)*100}%`,
+        top: `${(offY/240)*100}%`,
+        maxWidth: 'none',
+        userSelect:'none', pointerEvents:'none',
+      }}
+    />
+  );
+};
+
+const StarFarmersSection = () => (
+  <section style={{
+    background: '#fbf6e9',
+    padding: '90px 20px 110px',
+    position: 'relative',
+    fontFamily: "'Noto Sans TC',sans-serif",
+  }}>
+    <h2 style={{
+      textAlign:'center', color:'#3b6826', fontWeight:900,
+      fontSize:'clamp(28px, 3.4vw, 40px)', letterSpacing:'0.4em',
+      margin:'0 0 56px', textIndent:'0.4em',
+    }}>各地五星農夫</h2>
+
+    <div style={{
+      display:'flex', justifyContent:'center', gap:'clamp(16px, 2vw, 24px)',
+      flexWrap:'wrap', maxWidth:1320, margin:'0 auto',
+    }}>
+      {STAR_FARMERS.map(f => (
+        <div key={f.name} style={{
+          display:'flex', flexDirection:'column', alignItems:'center',
+          width: 240, maxWidth:'45vw',
+        }}>
+          <div style={{
+            width:'min(240px, 45vw)', aspectRatio:'1/1',
+            borderRadius:'50%', overflow:'hidden',
+            position:'relative',
+            boxShadow:'0 4px 14px rgba(0,0,0,0.08)',
+            border:'3px solid #a48b78',
+            background:'#e8e0c8',
+          }}>
+            <FarmerPortrait offX={f.x} offY={f.y}/>
+          </div>
+          <div style={{
+            color:'#5d5d5d', fontWeight:700, fontSize:24,
+            letterSpacing:'0.1em', marginTop:24, textAlign:'center',
+          }}>{f.name}</div>
+          <div style={{
+            color:'#5d5d5d', fontWeight:500, fontSize:18,
+            letterSpacing:'0.1em', marginTop:14, lineHeight:1.6, textAlign:'center',
+          }}>
+            <div>{f.region}</div>
+            <div>農齡：{f.years}年</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+);
+
+/* ── FOOTER ── */
+const Footer = () => (
+  <footer style={{
+    background: '#fbf6e9',
+    padding: '20px 0 40px',
+    textAlign: 'center',
+    color: '#a48b78',
+    fontWeight: 500,
+    fontSize: 12,
+    fontFamily: "'Noto Sans TC',sans-serif",
+    letterSpacing: 1,
+  }}>
+    © 2026 農知島 The Island of Harvest 版權所有
+  </footer>
+);
+
 /* ── MAIN APP ────────────────────────────────────────────── */
 const App = () => {
-  const [selected, setSelected] = useState(()=>localStorage.getItem('tw-map-sel')||'tainan');
+  // Default region matches the static design (桃園 / 番茄). The user can still
+  // click another county; the live weather + price overlays will refetch.
+  const [selected, setSelected] = useState(()=>localStorage.getItem('tw-map-sel')||'taoyuan');
   const handleSelect = (id) => {
     setSelected(id);
     localStorage.setItem('tw-map-sel', id);
   };
 
+  // The base bundle centers a fixed-size card; this design is a multi-section
+  // page, so override the body/root styles to allow vertical scrolling.
+  React.useEffect(() => {
+    const body = document.body;
+    const root = document.getElementById('root');
+    const prev = {
+      bodyDisplay: body.style.display,
+      bodyAlign: body.style.alignItems,
+      bodyJustify: body.style.justifyContent,
+      bodyBg: body.style.background,
+      bodyMinH: body.style.minHeight,
+      rootPadding: root ? root.style.padding : '',
+      rootDisplay: root ? root.style.display : '',
+      rootWidth: root ? root.style.width : '',
+    };
+    body.style.display = 'block';
+    body.style.alignItems = '';
+    body.style.justifyContent = '';
+    body.style.background = '#ffffff';
+    body.style.minHeight = '';
+    if (root) {
+      root.style.padding = '0';
+      root.style.display = 'block';
+      root.style.width = '100%';
+    }
+    return () => {
+      body.style.display = prev.bodyDisplay;
+      body.style.alignItems = prev.bodyAlign;
+      body.style.justifyContent = prev.bodyJustify;
+      body.style.background = prev.bodyBg;
+      body.style.minHeight = prev.bodyMinH;
+      if (root) {
+        root.style.padding = prev.rootPadding;
+        root.style.display = prev.rootDisplay;
+        root.style.width = prev.rootWidth;
+      }
+    };
+  }, []);
+
   return (
-    <div style={{display:'flex',width:'min(1280px,100vw)',height:'min(720px,92vh)',borderRadius:24,overflow:'hidden',boxShadow:'0 24px 80px rgba(0,0,0,0.2)'}}>
+    <div style={{width:'100%', display:'flex', flexDirection:'column', background:'#ffffff'}}>
 
-      {/* LEFT: Map panel — real image + transparent click overlay.
-          overflow:visible so hover glows near the east edge (e.g. Yilan) don't get clipped.
-          Outer card's overflow:hidden still handles the rounded-corner clipping. */}
-      <div style={{flex:'0 0 44%',minWidth:0,position:'relative',overflow:'visible'}}>
-        <TaiwanMap selected={selected} onSelect={handleSelect}/>
-      </div>
+      {/* TOP — new design: single image background + live weather/price overlays */}
+      <TopSection selected={selected} onSelect={handleSelect}/>
 
-      {/* RIGHT: Info panel */}
-      <div style={{flex:1,background:'#fdf7ef',overflowY:'auto',display:'flex',flexDirection:'column'}}>
-        <InfoPanel regionId={selected}/>
-      </div>
+      <MascotsRow/>
+      <FarmingDailySection/>
+      <StarFarmersSection/>
+      <Footer/>
     </div>
   );
 };

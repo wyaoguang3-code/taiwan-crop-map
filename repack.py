@@ -30,6 +30,17 @@ for p in sorted(UNPACKED.glob("right_panel_*.png")):
     regions[region_id] = f"data:image/png;base64,{data}"
 print(f"Region-specific right panels: {list(regions.keys())}")
 
+# Collect design assets (mascots row, farming photos, farmers source, top section)
+# for the new design layout. Files live in unpacked/ as JPEGs.
+design_imgs = {}
+for name in ("top_section", "mascots_row", "farmers_source", "farming_1", "farming_2", "farming_3"):
+    f = UNPACKED / f"{name}.jpg"
+    if not f.exists():
+        continue
+    data = base64.b64encode(f.read_bytes()).decode("ascii")
+    design_imgs[name] = f"data:image/jpeg;base64,{data}"
+print(f"Design assets bundled: {list(design_imgs.keys())}")
+
 # Locate the template <script>...</script> block.
 tpl_re = re.compile(
     r'(<script type="__bundler/template">)(.*?)(</script>)',
@@ -60,6 +71,8 @@ new_inner = babel_re.sub(
 regions_script = (
     '<script>window.RIGHT_PANEL_IMGS='
     + json.dumps(regions, ensure_ascii=False)
+    + ';window.DESIGN_IMGS='
+    + json.dumps(design_imgs, ensure_ascii=False)
     + ';</script>'
 )
 # Remove any previously-injected version so re-runs stay idempotent.
