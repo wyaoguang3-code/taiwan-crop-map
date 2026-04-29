@@ -479,31 +479,31 @@ const PricePanelCard = () => {
       {/* Sub-card: 價格面板 (AMIS) */}
       <div style={{background:'#fff5e8', borderRadius:10, padding:'8px 12px', boxShadow:'0 1px 0 #f0e0c8'}}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
-          <div style={{fontSize:'1.05cqw', fontWeight:900, color:'#a85a16', letterSpacing:1}}>價格面板 (AMIS)</div>
-          <div style={{fontSize:'0.65cqw', color:'#a89070'}}>{latestDate ? latestDate.replace(/-/g,'/') : ''}</div>
+          <div style={{fontSize:15, fontWeight:900, color:'#a85a16', letterSpacing:1}}>價格面板 (AMIS)</div>
+          <div style={{fontSize:9, color:'#a89070'}}>{latestDate ? latestDate.replace(/-/g,'/') : ''}</div>
         </div>
         <div style={{marginTop:4, display:'flex', alignItems:'baseline', gap:10}}>
-          <div style={{fontSize:'0.85cqw', color:'#7a5418', fontWeight:700}}>最新均價</div>
-          <div style={{fontSize:'1.0cqw', fontWeight:900, color:'#5a3a18'}}>${fmt(latest)} / 公斤</div>
-          <div style={{fontSize:'0.75cqw', color:'#a89070'}}>(${fmt(taikinPrice)} / 台斤)</div>
+          <div style={{fontSize:12, color:'#7a5418', fontWeight:700}}>最新均價</div>
+          <div style={{fontSize:14, fontWeight:900, color:'#5a3a18'}}>${fmt(latest)} / 公斤</div>
+          <div style={{fontSize:11, color:'#a89070'}}>(${fmt(taikinPrice)} / 台斤)</div>
         </div>
       </div>
       {/* Sub-card: 試算預估零售價 */}
       <div style={{background:'#fff5e8', borderRadius:10, padding:'8px 12px', boxShadow:'0 1px 0 #f0e0c8'}}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
-          <div style={{fontSize:'1.05cqw', fontWeight:900, color:'#a85a16', letterSpacing:1}}>試算預估零售價</div>
-          <div style={{fontSize:'0.65cqw', color:'#a89070'}}>(口徑A: 批發 × 2)</div>
+          <div style={{fontSize:15, fontWeight:900, color:'#a85a16', letterSpacing:1}}>試算預估零售價</div>
+          <div style={{fontSize:9, color:'#a89070'}}>(口徑A: 批發 × 2)</div>
         </div>
         <div style={{marginTop:4, display:'flex', alignItems:'baseline', gap:14}}>
-          <div style={{fontSize:'1.0cqw', fontWeight:900, color:'#5a3a18'}}>${retailKg ?? '—'} / 公斤</div>
-          <div style={{fontSize:'0.65cqw', color:'#c8a070'}}>|</div>
-          <div style={{fontSize:'1.0cqw', fontWeight:900, color:'#5a3a18'}}>${retailTaikin ?? '—'} / 台斤</div>
+          <div style={{fontSize:14, fontWeight:900, color:'#5a3a18'}}>${retailKg ?? '—'} / 公斤</div>
+          <div style={{fontSize:9, color:'#c8a070'}}>|</div>
+          <div style={{fontSize:14, fontWeight:900, color:'#5a3a18'}}>${retailTaikin ?? '—'} / 台斤</div>
         </div>
       </div>
       {/* Sub-card: 近期交易指標 */}
       <div style={{background:'#fff5e8', borderRadius:10, padding:'8px 12px', boxShadow:'0 1px 0 #f0e0c8'}}>
-        <div style={{fontSize:'1.05cqw', fontWeight:900, color:'#a85a16', letterSpacing:1, marginBottom:6}}>近期交易指標</div>
-        <div style={{display:'flex', gap:14, fontSize:'0.85cqw', color:'#7a5418', alignItems:'center', flexWrap:'wrap'}}>
+        <div style={{fontSize:15, fontWeight:900, color:'#a85a16', letterSpacing:1, marginBottom:6}}>近期交易指標</div>
+        <div style={{display:'flex', gap:14, fontSize:12, color:'#7a5418', alignItems:'center', flexWrap:'wrap'}}>
           <div>購買建議</div>
           <span style={{padding:'3px 10px', borderRadius:10, background:buyTag.bg, color:buyTag.fg, fontWeight:700}}>{buyTag.label}</span>
           <div>賣出建議</div>
@@ -578,11 +578,11 @@ const TrendChartCard = () => {
       fontFamily:"'Noto Sans TC',sans-serif",
     }}>
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-        <div style={{fontSize:'1.15cqw', fontWeight:900, color:'#5a7028', letterSpacing:1.5}}>批發市場行情趨勢圖</div>
+        <div style={{fontSize:17, fontWeight:900, color:'#5a7028', letterSpacing:1.5}}>批發市場行情趨勢圖</div>
         <div style={{display:'flex', gap:6}}>
           {[['weekly','每週'],['monthly','每月'],['year52','一年'],['yearly','每年']].map(([k, label]) => (
             <button key={k} onClick={()=>setPeriod(k)} style={{
-              fontSize:'0.75cqw', padding:'3px 12px',
+              fontSize:11, padding:'3px 12px',
               border:'1px solid '+(period===k?'#7a8c2a':'#d8dcc0'),
               background: period===k ? '#bcc865' : '#fefef0',
               color: period===k ? '#3d4a10' : '#7a8c2a',
@@ -646,8 +646,8 @@ const VolumeBarsCard = () => {
       fontFamily:"'Noto Sans TC',sans-serif",
     }}>
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-        <div style={{fontSize:'1.15cqw', fontWeight:900, color:'#256b78', letterSpacing:1.5}}>批發市場成交量比較</div>
-        <div style={{fontSize:'0.65cqw', color:'#7a9a9e'}}>(當月交易日累積{m?.market_compare?.month ? '・' + m.market_compare.month : ''})</div>
+        <div style={{fontSize:17, fontWeight:900, color:'#256b78', letterSpacing:1.5}}>批發市場成交量比較</div>
+        <div style={{fontSize:9, color:'#7a9a9e'}}>(當月交易日累積{m?.market_compare?.month ? '・' + m.market_compare.month : ''})</div>
       </div>
       <div style={{flex:1, background:'#fff', border:'1px solid #cfe3e7', borderRadius:10, padding:'8px 10px', position:'relative', minHeight:0}}>
         <canvas ref={canvasRef}/>
@@ -703,8 +703,8 @@ const PriceBarsCard = () => {
       fontFamily:"'Noto Sans TC',sans-serif",
     }}>
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-        <div style={{fontSize:'1.15cqw', fontWeight:900, color:'#a8581a', letterSpacing:1.5}}>批發市場價格比較</div>
-        <div style={{fontSize:'0.65cqw', color:'#bb9a72'}}>(當月交易量加權均價；可挑價格較佳市場)</div>
+        <div style={{fontSize:17, fontWeight:900, color:'#a8581a', letterSpacing:1.5}}>批發市場價格比較</div>
+        <div style={{fontSize:9, color:'#bb9a72'}}>(當月交易量加權均價；可挑價格較佳市場)</div>
       </div>
       <div style={{flex:1, background:'#fff', border:'1px solid #f0e0c8', borderRadius:10, padding:'8px 10px', position:'relative', minHeight:0}}>
         <canvas ref={canvasRef}/>
@@ -774,8 +774,8 @@ const DisasterChartCard = () => {
       fontFamily:"'Noto Sans TC',sans-serif",
     }}>
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-        <div style={{fontSize:'1.25cqw', fontWeight:900, color:'#2e7c6c', letterSpacing:1.5}}>每年農作物災損金額</div>
-        <div style={{fontSize:'0.7cqw', color:'#7aa090'}}>(億元)</div>
+        <div style={{fontSize:18, fontWeight:900, color:'#2e7c6c', letterSpacing:1.5}}>每年農作物災損金額</div>
+        <div style={{fontSize:10, color:'#7aa090'}}>(億元)</div>
       </div>
       <div style={{flex:1, background:'#fff', border:'1px solid #cfe3d8', borderRadius:10, padding:'8px 10px', position:'relative', minHeight:0}}>
         <canvas ref={canvasRef}/>
@@ -917,13 +917,13 @@ const ExportTrendChart = () => {
     }}>
       {/* Outer header: title + 每月/每年 toggle (and country picker for interactivity) */}
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-        <div style={{fontSize:'1.25cqw', fontWeight:900, color:'#5d3fb8', letterSpacing:1.5}}>外銷趨勢圖</div>
+        <div style={{fontSize:18, fontWeight:900, color:'#5d3fb8', letterSpacing:1.5}}>外銷趨勢圖</div>
         <div style={{display:'flex', gap:6, alignItems:'center'}}>
           <select
             value={country}
             onChange={e=>setCountry(e.target.value)}
             style={{
-              fontSize:'0.85cqw', padding:'3px 8px',
+              fontSize:12, padding:'3px 8px',
               border:'1px solid #d4cfe8', borderRadius:14,
               background:'#fff', color:'#5d3fb8',
               fontFamily:'inherit', cursor:'pointer',
@@ -932,7 +932,7 @@ const ExportTrendChart = () => {
           </select>
           {[['monthly','每月'], ['yearly','每年']].map(([k, label]) => (
             <button key={k} onClick={()=>setPeriod(k)} style={{
-              fontSize:'0.85cqw', padding:'4px 14px',
+              fontSize:12, padding:'4px 14px',
               border:'1px solid '+(period===k?'#7560d4':'#e8dfd0'),
               background: period===k ? '#7560d4' : '#faf2dd',
               color: period===k ? '#fff' : '#a8956e',
@@ -959,10 +959,21 @@ const ExportTrendChart = () => {
   );
 };
 
-/* ── DASHBOARD PAGE (clicking the tomato character opens this) ─────────── */
+/* ── DASHBOARD PAGE (clicking the tomato character opens this) ───────────
+ * Mobile fix: dashboard cards use a mix of percent / cqw / Chart.js fixed-px
+ * that all scale differently, breaking layout below ~1000px viewports. We
+ * render the entire dashboard at fixed design pixels (1440×1468) inside a
+ * uniformly-scaled wrapper so positioning and font sizes shrink as one unit
+ * down to any viewport. Cards above remain unchanged.
+ */
 const Dashboard = ({onBack}) => (
   <div style={{
-    position:'relative', width:'min(1440px, 100%)', margin:'0 auto',
+    position:'relative',
+    width:'100%',
+    maxWidth:1440,
+    margin:'0 auto',
+    aspectRatio:'1440 / 1468',
+    overflow:'hidden',
     containerType: 'inline-size',
   }}>
     <button onClick={onBack} style={{
@@ -974,17 +985,24 @@ const Dashboard = ({onBack}) => (
       boxShadow:'0 4px 14px rgba(0,0,0,0.2)',
       fontFamily:"'Noto Sans TC',sans-serif",
     }}>← 返回首頁</button>
-    <img
-      src={(window.DESIGN_IMGS && window.DESIGN_IMGS.tomato_dashboard) || ''}
-      alt="桃園市 番茄市場儀表板"
-      style={{display:'block', width:'100%', height:'auto', userSelect:'none'}}
-    />
-    <PricePanelCard/>
-    <TrendChartCard/>
-    <VolumeBarsCard/>
-    <PriceBarsCard/>
-    <ExportTrendChart/>
-    <DisasterChartCard/>
+    <div style={{
+      position:'absolute', inset:0,
+      width:1440, height:1468,
+      transformOrigin:'top left',
+      transform:'scale(calc(100cqw / 1440px))',
+    }}>
+      <img
+        src={(window.DESIGN_IMGS && window.DESIGN_IMGS.tomato_dashboard) || ''}
+        alt="桃園市 番茄市場儀表板"
+        style={{display:'block', width:1440, height:'auto', userSelect:'none'}}
+      />
+      <PricePanelCard/>
+      <TrendChartCard/>
+      <VolumeBarsCard/>
+      <PriceBarsCard/>
+      <ExportTrendChart/>
+      <DisasterChartCard/>
+    </div>
   </div>
 );
 
