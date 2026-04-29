@@ -713,6 +713,77 @@ const PriceBarsCard = () => {
   );
 };
 
+/* ── CARD 6: 每年農作物災損金額 ─────────────────────────────────────────── */
+const DisasterChartCard = () => {
+  const ds = window.DATASETS && window.DATASETS.disaster_yearly;
+  const canvasRef = React.useRef(null);
+  const chartRef  = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!ds || !window.Chart || !canvasRef.current) return;
+    const rows = ds.yearly || [];
+    const labels = rows.map(r => r.year);
+    const losses = rows.map(r => r.loss_100m_ntd);
+    const qtys = rows.map(r => r.loss_qty_ton);
+
+    if (chartRef.current) chartRef.current.destroy();
+    chartRef.current = new window.Chart(canvasRef.current, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label:'災損金額 (億元)', data: losses, backgroundColor:'rgba(245,150,150,0.85)', borderColor:'#e67878', borderWidth:1, yAxisID:'y1', order:2 },
+          { label:'災損數量 (公噸)', data: qtys, type:'line', borderColor:'#3fb6c8', backgroundColor:'#3fb6c8', tension:0.25, pointRadius:4, pointHoverRadius:6, borderWidth:2.5, yAxisID:'y2', order:1 },
+        ],
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins: {
+          legend:{ position:'top', labels:{font:{size:11}, color:'#3a6a78'}},
+          tooltip:{ callbacks:{ label: ctx => {
+            const v = ctx.raw;
+            if (v == null) return ctx.dataset.label + ': —';
+            return ctx.dataset.label + ': ' + v.toLocaleString('zh-TW');
+          }}},
+        },
+        scales: {
+          x:{ ticks:{font:{size:11}, color:'#666'}, grid:{display:false} },
+          y1:{ position:'left',  title:{display:true,text:'金額 (億元)',font:{size:10},color:'#666'}, ticks:{font:{size:10},color:'#666'}, grid:{color:'rgba(0,0,0,0.05)'} },
+          y2:{ position:'right', title:{display:true,text:'數量 (公噸)',font:{size:10},color:'#666'}, ticks:{font:{size:10},color:'#666',callback:v=>v.toLocaleString('zh-TW')}, grid:{drawOnChartArea:false} },
+        },
+      },
+    });
+    return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+  }, [ds]);
+
+  // Card position: x=726-1407, y=842-1287 (mirrors export-trend's mid-bottom row).
+  return (
+    <div style={{
+      position:'absolute',
+      left:   `${726/1440*100}%`,
+      top:    `${842/1468*100}%`,
+      width:  `${(1407-726)/1440*100}%`,
+      height: `${(1287-842)/1468*100}%`,
+      background:'#ddeee8',
+      border:'1.5px solid #b7d3c8',
+      borderRadius:14,
+      padding:'14px 18px',
+      boxSizing:'border-box',
+      display:'flex', flexDirection:'column', gap:10,
+      fontFamily:"'Noto Sans TC',sans-serif",
+    }}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <div style={{fontSize:'1.25cqw', fontWeight:900, color:'#2e7c6c', letterSpacing:1.5}}>每年農作物災損金額</div>
+        <div style={{fontSize:'0.7cqw', color:'#7aa090'}}>(億元)</div>
+      </div>
+      <div style={{flex:1, background:'#fff', border:'1px solid #cfe3d8', borderRadius:10, padding:'8px 10px', position:'relative', minHeight:0}}>
+        <canvas ref={canvasRef}/>
+      </div>
+    </div>
+  );
+};
+
 /* ── EXPORT TREND CHART (interactive, real data from agrstat.moa.gov.tw) ───
  * Replaces the static "外銷趨勢圖" cell in the dashboard image with a
  * Chart.js bar+line chart. Data lives in window.DATASETS.tomato_export
@@ -913,6 +984,7 @@ const Dashboard = ({onBack}) => (
     <VolumeBarsCard/>
     <PriceBarsCard/>
     <ExportTrendChart/>
+    <DisasterChartCard/>
   </div>
 );
 
