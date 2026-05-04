@@ -190,6 +190,25 @@ const PriceOverlay = ({cropName, variety, market}) => {
     const fallback = PRICE_FALLBACK[cropName] || PRICE_FALLBACK['彩椒'];
     setData(fallback);
     let cancelled = false;
+
+    // For 番茄 we have a bundled 365-day daily series (window.DATASETS.tomato_market.daily)
+    // built from a daily AMIS snapshot — much more reliable than the live AMIS endpoint
+    // which truncates to the latest few records and has a broken date filter.
+    const tm = window.DATASETS && window.DATASETS.tomato_market;
+    if (cropName === '番茄' && tm && Array.isArray(tm.daily) && tm.daily.length >= 5) {
+      const recent = tm.daily.slice(-7);
+      const sparkVals = recent.map(d => Math.round(d.price));
+      const sparkDates = recent.map(d => {
+        const parts = String(d.date || '').split(/[./-]/).map(n => parseInt(n, 10));
+        return parts.length >= 3 ? `${parts[1]}/${parts[2]}` : '';
+      });
+      const price = sparkVals[sparkVals.length - 1];
+      const prevPrice = sparkVals[sparkVals.length - 2] || price;
+      const chgPct = prevPrice ? Math.round((price - prevPrice) / prevPrice * 100) : 0;
+      setData({ price, chgPct, sparkVals, sparkDates });
+      return () => { cancelled = true; };
+    }
+
     const fmt = d => d.toISOString().slice(0,10);
     const today = new Date();
     const fromDate = new Date(today - 14*86400000);
