@@ -185,16 +185,16 @@ const PRICE_FALLBACK = {
 const PriceOverlay = ({cropName, variety, market}) => {
   const initial = PRICE_FALLBACK[cropName] || PRICE_FALLBACK['彩椒'];
   const [data, setData] = React.useState(initial);
+  const tm = useTomatoMarket();
 
   React.useEffect(() => {
     const fallback = PRICE_FALLBACK[cropName] || PRICE_FALLBACK['彩椒'];
     setData(fallback);
     let cancelled = false;
 
-    // For 番茄 we have a bundled 365-day daily series (window.DATASETS.tomato_market.daily)
-    // built from a daily AMIS snapshot — much more reliable than the live AMIS endpoint
-    // which truncates to the latest few records and has a broken date filter.
-    const tm = window.DATASETS && window.DATASETS.tomato_market;
+    // 番茄 uses the daily-updated nongzhidao snapshot (useTomatoMarket fetches
+    // it at runtime, falling back to the bundled copy). Other crops still hit
+    // the live AMIS endpoint, which is unreliable but the only data we have.
     if (cropName === '番茄' && tm && Array.isArray(tm.daily) && tm.daily.length >= 5) {
       const recent = tm.daily.slice(-7);
       const sparkVals = recent.map(d => Math.round(d.price));
@@ -263,7 +263,7 @@ const PriceOverlay = ({cropName, variety, market}) => {
         console.warn('[price] fetch failed, keeping static fallback:', err && err.message);
       });
     return () => { cancelled = true; };
-  }, [cropName, variety, market]);
+  }, [cropName, variety, market, tm]);
 
   if (!data) return null;
   const { price, chgPct, sparkVals } = data;
@@ -473,8 +473,32 @@ const Page = ({selected, onSelect}) => {
  * series + per-market comparison. This avoids the AMIS endpoint's broken
  * date filter (it always returns latest 200 rows in prod).
  */
+// Module-level cache so every component share the same fetch result.
+let _tmCache = (typeof window !== 'undefined' && window.DATASETS && window.DATASETS.tomato_market) || null;
+let _tmFetched = false;
+const _tmListeners = new Set();
+
 const useTomatoMarket = () => {
-  return (window.DATASETS && window.DATASETS.tomato_market) || null;
+  const [data, setData] = React.useState(_tmCache);
+  React.useEffect(() => {
+    _tmListeners.add(setData);
+    if (!_tmFetched) {
+      _tmFetched = true;
+      // Live snapshot from nongzhidao's daily-updated cron. Fall back silently to the
+      // bundled copy if the cross-origin fetch fails (offline, CORS rejection, etc).
+      fetch('https://wyaoguang3-code.github.io/nongzhidao/data/code_FJ3.json')
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(j => {
+          if (j && Array.isArray(j.daily) && j.daily.length) {
+            _tmCache = j;
+            for (const fn of _tmListeners) fn(j);
+          }
+        })
+        .catch(err => console.warn('[tomato_market] live fetch failed, using bundled:', err));
+    }
+    return () => { _tmListeners.delete(setData); };
+  }, []);
+  return data;
 };
 
 /* ── CARD 1: 價格面板 (AMIS) ────────────────────────────────────────────── */
