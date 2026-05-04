@@ -512,8 +512,8 @@ const PricePanelCard = () => {
   const prev = daily.length >= 2 ? daily[daily.length-2].price : null;
   const chgPct = (latest != null && prev) ? Math.round((latest - prev) / prev * 100) : null;
 
-  // 1 公斤 = 0.6 台斤
-  const taikinPrice = latest != null ? latest * 0.6 : null;
+  // 元/台斤 = 元/公斤 ÷ 1.5 (matches the conversion used by nongzhidao FJ3.html)
+  const taikinPrice = latest != null ? latest / 1.5 : null;
   // Industry rule: retail ≈ wholesale × 2
   const retailKg = latest != null ? Math.round(latest * 2) : null;
   const retailTaikin = taikinPrice != null ? Math.round(taikinPrice * 2) : null;
