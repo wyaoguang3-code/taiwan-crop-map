@@ -100,32 +100,101 @@ const staticWx = (w) => ({
   fore: w.fore.map(f => ({ label: f.l, temp: f.t, code: ICON_TO_WMO[f.icon] ?? 3 })),
 });
 
+// CWA 中央氣象署 Open Data — 取代 Open-Meteo（台灣本土資料更準確）
+// F-D0047-089 = 鄉鎮 3 天 3hr 預報（即時）；F-D0047-091 = 鄉鎮 1 週 12hr 預報（明天/後天/週N）
+// API key 為個人申請的 free key — 寫死在前端，理論上會被看到，最壞情況：被 CWA 限速
+const CWA_KEY = 'CWA-8AA974C3-7C59-45FF-A587-5256281E5003';
+
+// CWA「天氣現象」中文 → 我們 4 種 icon (sun/cloudsun/cloud/rain) 對應的 WMO code
+// 規則：含雨/雷 → 61(rain icon)；多雲時晴 → 2(cloudsun)；晴天 → 0(sun)；其他 → 3(cloud)
+const cwaTextToWmo = (txt) => {
+  const t = String(txt || '');
+  if (/雨|雷/.test(t)) return 61;
+  if (/多雲時晴|晴時多雲/.test(t)) return 2;
+  if (t === '晴天' || t === '晴') return 0;
+  if (/多雲|陰|霧/.test(t)) return 3;
+  return 3;
+};
+
+// 取一個 ElementValue 陣列裡的指定 key（CWA 結構慣例）
+const _cwaVal = (timeArr, key) =>
+  (timeArr || []).map(t => (t.ElementValue && t.ElementValue[0] && t.ElementValue[0][key]));
+
 const useLiveWeather = (regionId) => {
   const region = REGIONS_DATA[regionId] || REGIONS_DATA.taoyuan;
   const [lat, lon] = region.coords;
+  const cityName = region.name;  // 例：「桃園市」— 對應 CWA LocationName
   const [wx, setWx] = React.useState(() => staticWx(region.weather));
   React.useEffect(() => {
     setWx(staticWx(region.weather));
     let cancelled = false;
-    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,relative_humidity_2m,precipitation_probability&daily=weather_code,temperature_2m_max&timezone=Asia%2FTaipei&forecast_days=4`)
-      .then(r=>r.json())
-      .then(d=>{
+    const base = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore';
+    const u3 = `${base}/F-D0047-089?Authorization=${CWA_KEY}&format=JSON&LocationName=${encodeURIComponent(cityName)}`;
+    const uw = `${base}/F-D0047-091?Authorization=${CWA_KEY}&format=JSON&LocationName=${encodeURIComponent(cityName)}`;
+    Promise.all([fetch(u3).then(r=>r.json()), fetch(uw).then(r=>r.json())])
+      .then(([d3, dw]) => {
         if (cancelled) return;
-        const days=['日','一','二','三','四','五','六'];
+        const sub3 = d3?.records?.Locations?.[0]?.Location?.[0];
+        const subW = dw?.records?.Locations?.[0]?.Location?.[0];
+        if (!sub3 || !subW) return;
+        const els3 = sub3.WeatherElement || [];
+        const elsW = subW.WeatherElement || [];
+
+        const find = (arr, name) => (arr || []).find(e => e.ElementName === name);
+
+        // 即時值（從 3hr 預報第一格）
+        const tNow = _cwaVal(find(els3, '溫度')?.Time, 'Temperature')[0];
+        const hNow = _cwaVal(find(els3, '相對濕度')?.Time, 'RelativeHumidity')[0];
+        const rNow = _cwaVal(find(els3, '3小時降雨機率')?.Time, 'ProbabilityOfPrecipitation')[0];
+        const wxNow = _cwaVal(find(els3, '天氣現象')?.Time, 'Weather')[0];
+
+        // 未來 3 天最高溫 / 天氣 — 從 12hr 系列彙整成日（白天那一段）
+        const dayLabels = ['日','一','二','三','四','五','六'];
+        const maxTimes = find(elsW, '最高溫度')?.Time || [];
+        const wxTimes = find(elsW, '天氣現象')?.Time || [];
+        // 取「白天 06-18」段（StartTime 是當日 06:00 的那筆）— index 0/2/4 通常是白天
+        const dailyByDate = {};
+        maxTimes.forEach((t, i) => {
+          const date = (t.StartTime || '').slice(0, 10);
+          const startHour = Number((t.StartTime || '').slice(11, 13));
+          // 偏好白天段（06-18）；若不是白天段就 fallback
+          if (!dailyByDate[date] || (startHour === 6 && dailyByDate[date].startHour !== 6)){
+            dailyByDate[date] = {
+              startHour,
+              maxTemp: Number(t.ElementValue?.[0]?.MaxTemperature),
+              wxText: '',
+            };
+          }
+        });
+        wxTimes.forEach(t => {
+          const date = (t.StartTime || '').slice(0, 10);
+          const startHour = Number((t.StartTime || '').slice(11, 13));
+          if (dailyByDate[date] && (startHour === 6 || !dailyByDate[date].wxText)){
+            dailyByDate[date].wxText = t.ElementValue?.[0]?.Weather || '';
+          }
+        });
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const futureDates = Object.keys(dailyByDate).sort().filter(d => d > todayStr).slice(0, 3);
+
+        const fore = futureDates.map((d, i) => {
+          const dt = new Date(d);
+          return {
+            label: i === 0 ? '明天' : (i === 1 ? '後天' : '週' + dayLabels[dt.getDay()]),
+            temp: Number.isFinite(dailyByDate[d].maxTemp) ? Math.round(dailyByDate[d].maxTemp) : 25,
+            code: cwaTextToWmo(dailyByDate[d].wxText),
+          };
+        });
+
         setWx({
-          temp: Math.round(d.current.temperature_2m),
-          code: d.current.weather_code,
-          hum:  d.current.relative_humidity_2m,
-          rain: d.current.precipitation_probability,
-          fore: [1,2,3].map(i=>({
-            label: i===1?'明天':i===2?'後天':'週'+days[new Date(d.daily.time[i]).getDay()],
-            temp: Math.round(d.daily.temperature_2m_max[i]),
-            code: d.daily.weather_code[i],
-          }))
+          temp: Number.isFinite(Number(tNow)) ? Math.round(Number(tNow)) : region.weather.temp,
+          code: cwaTextToWmo(wxNow),
+          hum:  Number.isFinite(Number(hNow)) ? Math.round(Number(hNow)) : region.weather.hum,
+          rain: Number.isFinite(Number(rNow)) ? Math.round(Number(rNow)) : region.weather.rain,
+          fore: fore.length === 3 ? fore : staticWx(region.weather).fore,
         });
       }).catch(()=>{});
     return () => { cancelled = true; };
-  }, [lat, lon]);
+  }, [lat, lon, cityName]);
   return wx;
 };
 
