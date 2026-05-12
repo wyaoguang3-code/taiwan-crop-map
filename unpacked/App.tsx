@@ -640,12 +640,13 @@ const Page = ({selected, onSelect}) => {
           const src = charsLib[charKey];
           // 角色置於 polygon 中心上方（向上偏移，讓角色「站」在 polygon 上）
           const w = CHAR_DISPLAY_W, h = CHAR_DISPLAY_H;
-          // 縣市名稱方框 — 沿用桃園市 design：64×24, rounded 13, 米白底棕邊
-          // 放在角色頭頂正上方（角色頂端再向上 8px）
+          // 縣市名稱方框 — 沿用桃園市 design：米白底棕邊圓角
+          // 放在角色下方（與原本 桃園市 design 一致：character 站立在 polygon 上、label 在腳下）
           const name = COUNTY_NAMES[hovered];
-          const labelW = 88, labelH = 30;  // 比 design 稍大，相對 canvas 縮放後易讀
+          const labelW = 88, labelH = 30;
           const labelX = centerX - labelW / 2;
-          const labelY = centerY - h * 0.85 - labelH - 6;
+          // character 底端 ≈ centerY + 0.15h；label 再往下 6px
+          const labelY = centerY + h * 0.15 + 6;
           return (
             <g style={{pointerEvents: 'none'}}>
               {src && (
