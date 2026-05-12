@@ -11,6 +11,9 @@ unpacked/mascot_area.png
 # These can always be reconstructed from bundle-source.html
 unpacked/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*
 
+# esbuild output (inlined into index.html, no need to track separately)
+unpacked/App.compiled.js
+
 # OS / editor junk
 .DS_Store
 .claude/
