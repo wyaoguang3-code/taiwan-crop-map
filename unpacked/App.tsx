@@ -566,22 +566,6 @@ const Page = ({selected, onSelect}) => {
         preserveAspectRatio="none"
         style={{position:'absolute', inset:0, width:'100%', height:'100%'}}
       >
-        {/* CLEAN MAP COVER — 用 Figma 原 SVG path 精準蓋住 baked-in 番茄角色 + 桃園市 badge。
-            sea rect 蓋上方葉子；polygon path 灰填蓋掉 polygon 內的番茄+badge。
-            位於 polygon overlay 之前 → hover 時 polygon 上層的 HOVER_FILL 仍會正確顯示。 */}
-        <g style={{pointerEvents: 'none'}}>
-          {/* 上方海藍區覆蓋番茄頭頂葉子 — design canvas 1440 座標 */}
-          <rect x="427" y="78" width="113" height="138" fill="#C8F2F0"/>
-          {/* 桃園 polygon 灰填 — 用 51:5096 原 path，邊緣與 polygon 完美貼合 */}
-          <svg
-            x="415.106" y="210.701" width="122.972" height="134.78"
-            viewBox="0 0 122.971 134.78"
-            preserveAspectRatio="none"
-            style={{overflow:'visible'}}
-          >
-            <path d={TW_COUNTIES.find(c => c.id === '51_5096').d} fill="#D1D1D1"/>
-          </svg>
-        </g>
 
 
         {TW_COUNTIES.map(c => (
