@@ -20,44 +20,74 @@ NEW_APP = UNPACKED / "App.tsx"
 OUT = ROOT / "index.html"
 
 html = SRC.read_text(encoding="utf-8")
-new_app_src = NEW_APP.read_text(encoding="utf-8")
 
-# Collect per-region right-panel images (optional — any region without one falls back).
+# Pre-compile App.tsx with esbuild → plain JS so the browser doesn't run Babel
+# Standalone at boot. In-browser Babel was the bottleneck for time-to-visible
+# (~2.3 sec on a 100 KB TSX file); esbuild does it offline in ~5 ms.
+import subprocess, shutil
+COMPILED = UNPACKED / "App.compiled.js"
+try:
+    subprocess.run(
+        ["npx", "--yes", "esbuild", str(NEW_APP),
+         "--loader:.tsx=tsx", "--jsx=transform",
+         "--jsx-factory=React.createElement", "--jsx-fragment=React.Fragment",
+         "--target=es2020", f"--outfile={COMPILED}"],
+        check=True, capture_output=True,
+    )
+    new_app_src = COMPILED.read_text(encoding="utf-8")
+    print(f"App.tsx compiled with esbuild: {len(new_app_src)/1024:.1f} KB")
+except (subprocess.CalledProcessError, FileNotFoundError) as e:
+    # Fallback to in-browser Babel if esbuild isn't available — slower but works.
+    print(f"esbuild unavailable ({e}); falling back to in-browser Babel")
+    new_app_src = NEW_APP.read_text(encoding="utf-8")
+
+# window.RIGHT_PANEL_IMGS is no longer referenced by App.tsx (we use full_page.jpg
+# as a single background). Skip bundling to keep the HTML small.
 regions = {}
-for p in sorted(UNPACKED.glob("right_panel_*.png")):
-    region_id = p.stem.replace("right_panel_", "")
-    data = base64.b64encode(p.read_bytes()).decode("ascii")
-    regions[region_id] = f"data:image/png;base64,{data}"
-print(f"Region-specific right panels: {list(regions.keys())}")
 
 # Bundle the full-page design export. The new App renders this single image
 # as the page background and only overlays the 2 dynamic data cards on top.
+# Design background images are served as separate files (not inlined as data: URLs)
+# so the browser can decode them in parallel with HTML parsing instead of blocking
+# load on ~3 MB of base64 image data. Copy them into the public dir next to index.html.
+ASSETS = ROOT / "assets"
+ASSETS.mkdir(exist_ok=True)
 design_imgs = {}
-for name in ("full_page", "tomato_dashboard"):
-    f = UNPACKED / f"{name}.jpg"
-    if not f.exists():
+for name, ext in [("full_page", "jpg"), ("tomato_dashboard", "jpg"), ("taoyuan_detail", "png")]:
+    src = UNPACKED / f"{name}.{ext}"
+    if not src.exists():
         continue
-    data = base64.b64encode(f.read_bytes()).decode("ascii")
-    design_imgs[name] = f"data:image/jpeg;base64,{data}"
-# Bundle the 桃園 detail page background (rendered from 桃園地圖.ai)
-for name in ("taoyuan_detail",):
-    f = UNPACKED / f"{name}.png"
-    if not f.exists():
-        continue
-    data = base64.b64encode(f.read_bytes()).decode("ascii")
-    design_imgs[name] = f"data:image/png;base64,{data}"
-print(f"Design assets bundled: {list(design_imgs.keys())}")
+    dst = ASSETS / f"{name}.{ext}"
+    dst.write_bytes(src.read_bytes())
+    design_imgs[name] = f"assets/{name}.{ext}"   # relative URL the browser fetches
+print(f"Design assets served externally: {list(design_imgs.keys())}")
 
 # Bundle per-county character SVGs (hover-to-show on the map).
 # Files at unpacked/county_chars/<key>.svg are loaded by key.
+# Strip Adobe Illustrator metadata (each raw SVG is ~770 KB, 99% of which is
+# AI's <metadata> + i: namespace blob; after stripping each is ~5 KB).
+import re as _re
+def _strip_ai(svg_text: str) -> str:
+    s = _re.sub(r"<metadata>.*?</metadata>", "", svg_text, flags=_re.DOTALL)
+    s = _re.sub(r"\s+xmlns:i=\"[^\"]+\"", "", s)
+    s = _re.sub(r"<!--.*?-->", "", s, flags=_re.DOTALL)
+    return s
+
 county_chars = {}
 char_dir = UNPACKED / "county_chars"
 if char_dir.exists():
+    raw_total = 0
+    clean_total = 0
     for p in sorted(char_dir.glob("*.svg")):
         key = p.stem
-        data = base64.b64encode(p.read_bytes()).decode("ascii")
+        raw = p.read_text(encoding="utf-8")
+        cleaned = _strip_ai(raw).encode("utf-8")
+        raw_total += len(raw.encode("utf-8"))
+        clean_total += len(cleaned)
+        data = base64.b64encode(cleaned).decode("ascii")
         county_chars[key] = f"data:image/svg+xml;base64,{data}"
-    print(f"County characters bundled: {len(county_chars)} keys")
+    print(f"County characters bundled: {len(county_chars)} keys "
+          f"({raw_total/1024:.0f} KB raw → {clean_total/1024:.0f} KB stripped)")
 
 # Bundle dashboard datasets (parsed from agrstat.moa.gov.tw ODS exports).
 datasets = {}
@@ -67,6 +97,20 @@ for name in ("tomato_export", "tomato_market", "disaster_yearly"):
         continue
     datasets[name] = json.loads(f.read_text())
 print(f"Datasets bundled: {list(datasets.keys())}")
+
+# Bundle Figma button SVGs (城市 pill / 加減號 / 上下箭頭, 各兩個 hover state).
+button_svgs = {}
+bf = UNPACKED / "figma_buttons.json"
+if bf.exists():
+    button_svgs = json.loads(bf.read_text())
+print(f"Button SVGs bundled: {len(button_svgs)} keys")
+
+# Bundle Taoyuan township crop characters (SVG data URLs).
+taoyuan_crops = {}
+tc = UNPACKED / "taoyuan_crops.json"
+if tc.exists():
+    taoyuan_crops = json.loads(tc.read_text())
+print(f"Taoyuan crop characters bundled: {len(taoyuan_crops)} keys")
 
 # Locate the template <script>...</script> block.
 tpl_re = re.compile(
@@ -80,19 +124,17 @@ if not m:
 tpl_json_str = m.group(2)
 inner_html = json.loads(tpl_json_str)  # decoded inner HTML (string)
 
-# Swap the babel script body inside the inner HTML.
+# Locate the original babel script — we use it both as the anchor for the
+# regions_script injection (below) and as the swap point for our compiled JS.
+# IMPORTANT: keep the babel attribute around while we inject `regions_script`,
+# THEN flip it to plain JS. Switching first would lose the anchor.
 babel_re = re.compile(
     r'(<script type="text/babel"[^>]*>)(.*?)(</script>)',
     re.DOTALL,
 )
 if not babel_re.search(inner_html):
     raise SystemExit("babel script not found inside template")
-
-new_inner = babel_re.sub(
-    lambda bm: bm.group(1) + new_app_src + bm.group(3),
-    inner_html,
-    count=1,
-)
+new_inner = inner_html
 
 # Inject (or replace) the per-region images script right before the babel script.
 # NB: DOMParser silently truncates very large inline scripts (~2 MB tested),
@@ -111,14 +153,33 @@ regions_script = (
     + '<script>window.DATASETS='
     + json.dumps(datasets, ensure_ascii=False)
     + ';</script>'
-    # Chart.js for the interactive charts on the dashboard page.
-    + '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>'
+    + '<script>window.BUTTON_SVGS='
+    + json.dumps(button_svgs, ensure_ascii=False)
+    + ';</script>'
+    + '<script>window.TAOYUAN_CROPS='
+    + json.dumps(taoyuan_crops, ensure_ascii=False)
+    + ';</script>'
+    # Chart.js bundled inline — CDN fetch was adding 6+ seconds to window.load.
+    # Local copy at unpacked/chart.umd.min.js (200 KB). The marker comment
+    # delimits this block so re-runs of repack.py can strip + replace it.
+    + '<script data-bundled="chart.js">' + (UNPACKED / "chart.umd.min.js").read_text(encoding="utf-8") + '</script>'
 )
 # Remove any previously-injected version so re-runs stay idempotent. Match
 # every consecutive injected <script>…</script> regardless of how it was split.
 new_inner = re.sub(
-    r'(?:<script(?:\s[^>]*)?>window\.(?:RIGHT_PANEL_IMGS|DESIGN_IMGS|COUNTY_CHARS|DATASETS)=.*?</script>)+'
-    r'(?:<script src="[^"]*chart[^"]*"></script>)?',
+    r'(?:<script(?:\s[^>]*)?>window\.(?:RIGHT_PANEL_IMGS|DESIGN_IMGS|COUNTY_CHARS|DATASETS|BUTTON_SVGS|TAOYUAN_CROPS)=.*?</script>)+'
+    r'(?:<script src="[^"]*chart[^"]*"></script>)?'
+    r'(?:<script data-bundled="chart\.js">.*?</script>)?',
+    '',
+    new_inner,
+    flags=re.DOTALL,
+)
+
+# Strip dead globals left over from earlier iterations of bundle-source.html —
+# MAP_IMG_SRC / LEFT_PANEL_IMG / RIGHT_PANEL_IMG are old per-panel images that the
+# current App.tsx no longer references. Together ~1.5 MB of base64 PNG.
+new_inner = re.sub(
+    r'<script>window\.(?:MAP_IMG_SRC|LEFT_PANEL_IMG|RIGHT_PANEL_IMG)=.*?</script>',
     '',
     new_inner,
     flags=re.DOTALL,
@@ -129,13 +190,90 @@ new_inner = babel_re.sub(
     count=1,
 )
 
+# NOW swap the (still text/babel) script body with the esbuild-compiled JS and
+# drop the type attribute so the browser runs it directly without Babel.
+new_inner = babel_re.sub(
+    lambda bm: '<script>' + new_app_src + bm.group(3),
+    new_inner,
+    count=1,
+)
+
 # Re-encode as JSON. Important: escape "</" → "<\u002F" so inner </script>
 # tags inside the JSON string don't terminate the outer <script> early.
 # (That's how the original bundler encoded it; \u002F is a valid JSON escape for /.)
-new_tpl_json = json.dumps(new_inner, ensure_ascii=False).replace("</", "<\\u002F")
+# ── Bypass the runtime bundler ─────────────────────────────────────────────
+# The outer HTML (bundle-source.html) embeds 108 assets (105 WOFF2 font slices
+# + 3 JS files ≈ 6.5 MB base64-gzip). At runtime it parses the manifest,
+# decodes/decompresses every asset, THEN injects the inner HTML — the user
+# stares at a loading thumbnail for ~500 ms even though loadComplete fires at
+# 700 ms. Here we pre-decode the manifest at repack time, save each asset to
+# assets/<uuid>.<ext>, and rewrite UUID refs to those paths. The new index.html
+# is just the inner HTML — no bundler, no thumbnail wait.
+import gzip as _gzip
 
-# Splice back into the outer HTML.
-new_html = html[:m.start(2)] + new_tpl_json + html[m.end(2):]
-OUT.write_bytes(new_html.encode("utf-8"))
+manifest_re = re.compile(r'<script type="__bundler/manifest">(.*?)</script>', re.DOTALL)
+mm = manifest_re.search(html)
+if not mm:
+    raise SystemExit("manifest script not found")
+manifest = json.loads(mm.group(1))
+
+_MIME_EXT = {
+    "font/woff2": "woff2",
+    "text/javascript": "js",
+    "application/javascript": "js",
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/svg+xml": "svg",
+}
+asset_url_for = {}
+saved = 0
+for uuid, entry in manifest.items():
+    raw = base64.b64decode(entry["data"])
+    if entry.get("compressed"):
+        raw = _gzip.decompress(raw)
+    ext = _MIME_EXT.get(entry.get("mime", ""), "bin")
+    dst = ASSETS / f"{uuid}.{ext}"
+    dst.write_bytes(raw)
+    asset_url_for[uuid] = f"assets/{uuid}.{ext}"
+    saved += len(raw)
+print(f"Manifest assets extracted: {len(manifest)} files ({saved/1024/1024:.1f} MB total)")
+
+# Rewrite UUID references in the inner HTML to point at the extracted files.
+for uuid, url in asset_url_for.items():
+    new_inner = new_inner.replace(uuid, url)
+
+# Drop Babel Standalone — App.tsx is now pre-compiled by esbuild. The Babel
+# bundle's first bytes are an IIFE that assigns `.Babel = {}` on globalThis;
+# React/ReactDOM both start with a `@license React` block, so we discriminate
+# by that fingerprint instead of substring (their license blob includes "babel"
+# elsewhere, which mis-flagged ReactDOM before).
+babel_uuid = None
+for uuid, entry in manifest.items():
+    if entry.get("mime") not in ("text/javascript", "application/javascript"):
+        continue
+    data = base64.b64decode(entry["data"])
+    if entry.get("compressed"):
+        data = _gzip.decompress(data)
+    head = data[:512].decode("utf-8", "ignore")
+    if "@license React" in head:
+        continue  # this is React or ReactDOM, keep
+    if "Babel={}" in head or "self).Babel" in head or "globalThis).Babel" in head:
+        babel_uuid = uuid
+        break
+if babel_uuid:
+    new_inner = re.sub(
+        rf'<script[^>]*src="assets/{babel_uuid}\.js"[^>]*></script>',
+        '', new_inner,
+    )
+    print(f"Babel Standalone dropped (uuid={babel_uuid[:8]}…)")
+else:
+    print("WARNING: Babel UUID not detected — bundle may include Babel Standalone")
+
+# Strip integrity + crossorigin attrs (were for SRI on CDN; not relevant for
+# same-origin local files and break script load if mismatched).
+new_inner = re.sub(r'\s+integrity="[^"]*"', '', new_inner)
+new_inner = re.sub(r'\s+crossorigin="[^"]*"', '', new_inner)
+
+OUT.write_bytes(new_inner.encode("utf-8"))
 print(f"Wrote {OUT}")
-print(f"Size: {len(new_html):,} bytes (original: {len(html):,} bytes)")
+print(f"Size: {len(new_inner):,} bytes (original outer: {len(html):,} bytes)")
