@@ -49,18 +49,33 @@ regions = {}
 # as the page background and only overlays the 2 dynamic data cards on top.
 # Design background images are served as separate files (not inlined as data: URLs)
 # so the browser can decode them in parallel with HTML parsing instead of blocking
-# load on ~3 MB of base64 image data. Copy them into the public dir next to index.html.
+# load on ~3 MB of base64 image data. Re-encoded to WebP at quality 75/80 — saves
+# roughly 70% over the original JPEG/PNG with no visible quality loss for these
+# illustrated backgrounds.
 ASSETS = ROOT / "assets"
 ASSETS.mkdir(exist_ok=True)
+try:
+    from PIL import Image as _Image
+except ImportError:
+    _Image = None
 design_imgs = {}
-for name, ext in [("full_page", "jpg"), ("tomato_dashboard", "jpg"), ("taoyuan_detail", "png")]:
-    src = UNPACKED / f"{name}.{ext}"
+for name, src_ext, opts in [
+    ("full_page",        "jpg", {"quality": 75}),
+    ("tomato_dashboard", "jpg", {"quality": 75}),
+    ("taoyuan_detail",   "png", {"quality": 80}),  # has alpha — WebP keeps it
+]:
+    src = UNPACKED / f"{name}.{src_ext}"
     if not src.exists():
         continue
-    dst = ASSETS / f"{name}.{ext}"
-    dst.write_bytes(src.read_bytes())
-    design_imgs[name] = f"assets/{name}.{ext}"   # relative URL the browser fetches
-print(f"Design assets served externally: {list(design_imgs.keys())}")
+    dst = ASSETS / f"{name}.webp"
+    if _Image is not None:
+        _Image.open(src).save(dst, "WEBP", **opts)
+    else:
+        # Fallback: ship original format if Pillow unavailable.
+        dst = ASSETS / f"{name}.{src_ext}"
+        dst.write_bytes(src.read_bytes())
+    design_imgs[name] = f"assets/{dst.name}"
+print(f"Design assets (webp): {list(design_imgs.keys())}")
 
 # Bundle per-county character SVGs (hover-to-show on the map).
 # Files at unpacked/county_chars/<key>.svg are loaded by key.
@@ -247,18 +262,35 @@ _MIME_EXT = {
     "image/jpeg": "jpg",
     "image/svg+xml": "svg",
 }
+# Production builds of React/ReactDOM (much smaller than the dev builds the
+# original bundle ships — ReactDOM dev = 1 MB, prod = 129 KB).
+REACT_PROD     = UNPACKED / "react.production.min.js"
+REACT_DOM_PROD = UNPACKED / "react-dom.production.min.js"
+
 asset_url_for = {}
 saved = 0
+react_replaced = []
 for uuid, entry in manifest.items():
     raw = base64.b64decode(entry["data"])
     if entry.get("compressed"):
         raw = _gzip.decompress(raw)
     ext = _MIME_EXT.get(entry.get("mime", ""), "bin")
+    # React dev → prod swap. Their license header carries the build name.
+    if ext == "js":
+        head = raw[:512].decode("utf-8", "ignore")
+        if "react-dom.development.js" in head and REACT_DOM_PROD.exists():
+            raw = REACT_DOM_PROD.read_bytes()
+            react_replaced.append(("react-dom", uuid[:8]))
+        elif "react.development.js" in head and REACT_PROD.exists():
+            raw = REACT_PROD.read_bytes()
+            react_replaced.append(("react", uuid[:8]))
     dst = ASSETS / f"{uuid}.{ext}"
     dst.write_bytes(raw)
     asset_url_for[uuid] = f"assets/{uuid}.{ext}"
     saved += len(raw)
 print(f"Manifest assets extracted: {len(manifest)} files ({saved/1024/1024:.1f} MB total)")
+if react_replaced:
+    print(f"  React dev → prod: {', '.join(f'{name}({u})' for name, u in react_replaced)}")
 
 # Rewrite UUID references in the inner HTML to point at the extracted files.
 for uuid, url in asset_url_for.items():
