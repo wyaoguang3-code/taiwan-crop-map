@@ -3987,7 +3987,7 @@ const Page = ({ selected, onSelect }) => {
         baseKey: "\u4E0A\u7BAD\u982D",
         cx: 124.06,
         cy: 971.74,
-        vbSize: 50.18,
+        size: 61.86,
         alwaysActive: true,
         onClick: () => setCityScrollIdx((i) => i - 1)
       },
@@ -3996,12 +3996,12 @@ const Page = ({ selected, onSelect }) => {
         baseKey: "\u4E0B\u7BAD\u982D",
         cx: 124.06,
         cy: 1404.88,
-        vbSize: 50.18,
+        size: 61.86,
         alwaysActive: true,
         onClick: () => setCityScrollIdx((i) => i + 1)
       },
-      { key: "plus", baseKey: "\u52A0\u865F", cx: 1129.37, cy: 1330.74, vbSize: 55.63, alwaysActive: true },
-      { key: "minus", baseKey: "\u6E1B\u865F", cx: 1129.37, cy: 1402.16, vbSize: 55.63, alwaysActive: true }
+      { key: "plus", baseKey: "\u52A0\u865F", cx: 1129.37, cy: 1330.74, size: 72.56, alwaysActive: true },
+      { key: "minus", baseKey: "\u6E1B\u865F", cx: 1129.37, cy: 1402.16, size: 72.56, alwaysActive: true }
     ];
     const PILL_Y = [1017.14, 1089.33, 1161.52, 1233.71, 1305.9];
     const pillNames = [
@@ -4022,10 +4022,11 @@ const Page = ({ selected, onSelect }) => {
       const svgKey = `${b.baseKey}${isActive ? "\u5496" : "\u7DA0"}`;
       const svg = window.BUTTON_SVGS?.[svgKey];
       if (!svg) return null;
-      const halfVb = b.vbSize / 2;
-      const left = (b.cx - halfVb) * F;
-      const top = (b.cy - halfVb) * F;
-      const size = b.vbSize * F;
+      const size = b.size;
+      const cxDesign = b.cx * F;
+      const cyDesign = b.cy * F;
+      const left = cxDesign - size / 2;
+      const top = cyDesign - size / 2;
       return /* @__PURE__ */ React.createElement(
         "div",
         {
@@ -4059,10 +4060,15 @@ const Page = ({ selected, onSelect }) => {
       const svgKey = `${p.baseKey}${isActive ? "\u5496" : "\u7DA0"}`;
       const svg = window.BUTTON_SVGS?.[svgKey];
       if (!svg) return null;
+      const PILL_W = 207;
+      const PILL_H = 67;
+      const PILL_PAD_X = 1.39 * (PILL_W / 156.89);
+      const PILL_PAD_Y = 1.39 * (PILL_H / 53.58);
       const left = (45.61 - 1.39) * F;
-      const top = (p.y - 1.39) * F;
-      const w = 159.67 * F;
-      const h = 56.36 * F;
+      const centerY = (p.y + 53.58 / 2) * F;
+      const top = centerY - (PILL_H / 2 + PILL_PAD_Y);
+      const w = PILL_W + 2 * PILL_PAD_X;
+      const h = PILL_H + 2 * PILL_PAD_Y;
       return /* @__PURE__ */ React.createElement(
         "div",
         {
@@ -4308,8 +4314,8 @@ const Page = ({ selected, onSelect }) => {
     ];
     const N = NEIGHBORS.length;
     const wrap = (i) => (i % N + N) % N;
-    const ARROW_SIZE = 30.93;
-    const PM_SIZE = 30.66;
+    const ARROW_SIZE = 28.1;
+    const PM_SIZE = 27.77;
     const buttons = [
       {
         key: "main_up",

@@ -713,16 +713,17 @@ const Page = ({selected, onSelect}) => {
                                '台東縣','花蓮縣','宜蘭縣','台北市'];
             const N = NEIGHBORS.length;
             const wrap = (i) => ((i % N) + N) % N;
-            // arrows + 加減號的 baked PNG 是「咖色 always active」狀態（一致的可操作 UI 控
-            // 件），不是 hover-切換的綠/咖。alwaysActive:true 讓 overlay 也永遠咖色，避免
-            // 被底圖透出的咖色邊緣造成「微偏移」假象。
+            // arrows + 加減號的 baked PNG 是「咖色 always active」狀態。
+            // size 是 overlay 渲染後的 design-units 寬高 — 直接量自 baked AVIF 後 reverse-engineer
+            // 出來 (圖內可見棕圓直徑 ÷ visible-radius-ratio × viewBox)，所以 overlay 跟 baked 對齊。
+            // Taoyuan baked: 下箭頭/+/-/像 d≈54-65；上箭頭是白圈+棕^（不同 style），這裡先用同尺寸。
             const buttons = [
-              { key:'up',     baseKey:'上箭頭', cx:124.06, cy:971.74,  vbSize:50.18, alwaysActive:true,
+              { key:'up',     baseKey:'上箭頭', cx:124.06, cy:971.74,  size:61.86, alwaysActive:true,
                 onClick: () => setCityScrollIdx(i => i - 1) },
-              { key:'down',   baseKey:'下箭頭', cx:124.06, cy:1404.88, vbSize:50.18, alwaysActive:true,
+              { key:'down',   baseKey:'下箭頭', cx:124.06, cy:1404.88, size:61.86, alwaysActive:true,
                 onClick: () => setCityScrollIdx(i => i + 1) },
-              { key:'plus',   baseKey:'加號',   cx:1129.37, cy:1330.74, vbSize:55.63, alwaysActive:true },
-              { key:'minus',  baseKey:'減號',   cx:1129.37, cy:1402.16, vbSize:55.63, alwaysActive:true },
+              { key:'plus',   baseKey:'加號',   cx:1129.37, cy:1330.74, size:72.56, alwaysActive:true },
+              { key:'minus',  baseKey:'減號',   cx:1129.37, cy:1402.16, size:72.56, alwaysActive:true },
             ];
             // city pills — rect at (x, y, 156.89×53.58), icon viewBox (159.67×56.36) with 1.39 padding
             // 5 個固定 slot；slot 3 永遠是 桃園市，其它依 cityScrollIdx 從 NEIGHBORS cyclic 取
@@ -745,11 +746,14 @@ const Page = ({selected, onSelect}) => {
               const svgKey = `${b.baseKey}${isActive ? '咖' : '綠'}`;
               const svg = window.BUTTON_SVGS?.[svgKey];
               if (!svg) return null;
-              // icon top-left (master) = circle center − vbSize/2
-              const halfVb = b.vbSize / 2;
-              const left = (b.cx - halfVb) * F;
-              const top  = (b.cy - halfVb) * F;
-              const size = b.vbSize * F;
+              // b.size is the rendered design-unit width/height (calibrated to baked).
+              // Top-left = center − size/2 (in design canvas, since cx/cy are master-units
+              // pre-applied F scale we still scale by F here for consistency).
+              const size = b.size;
+              const cxDesign = b.cx * F;
+              const cyDesign = b.cy * F;
+              const left = cxDesign - size/2;
+              const top  = cyDesign - size/2;
               return (
                 <div
                   key={b.key}
@@ -776,11 +780,21 @@ const Page = ({selected, onSelect}) => {
               const svgKey = `${p.baseKey}${isActive ? '咖' : '綠'}`;
               const svg = window.BUTTON_SVGS?.[svgKey];
               if (!svg) return null;
-              // rect (45.61, y, 156.89×53.58) sits inside icon viewBox at (1.39, 1.39)
+              // Pill SIZE pinned to baked AVIF measurements (204.6 × 66.7 design),
+              // which has wider aspect (3.07) than the SVG natural aspect (2.83).
+              // Letting the SVG stretch — pill rect inside renders the same.
+              // POSITION: center each pill on its baked center y. p.y is the master-SVG
+              // top-y; baked center sits ~F units below that (rect height/2).
+              const PILL_W = 207;
+              const PILL_H = 67;
+              const PILL_PAD_X = 1.39 * (PILL_W / 156.89);
+              const PILL_PAD_Y = 1.39 * (PILL_H / 53.58);
               const left = (45.61 - 1.39) * F;
-              const top  = (p.y  - 1.39) * F;
-              const w = 159.67 * F;
-              const h = 56.36  * F;
+              // Center y = p.y + 53.58/2 in master, → ×F in design.
+              const centerY = (p.y + 53.58/2) * F;
+              const top  = centerY - (PILL_H/2 + PILL_PAD_Y);
+              const w = PILL_W + 2 * PILL_PAD_X;
+              const h = PILL_H + 2 * PILL_PAD_Y;
               return (
                 <div
                   key={p.key}
@@ -1007,9 +1021,12 @@ const Page = ({selected, onSelect}) => {
                            '台東縣','花蓮縣','宜蘭縣','台北市'];
         const N = NEIGHBORS.length;
         const wrap = (i) => ((i % N) + N) % N;
-        // Arrow / +- icon size — visible brown circle r=13.8 design; icon viewBox padding included.
-        const ARROW_SIZE = 30.93;   // viewBox 50.18, r=22.32 visible → 13.8/22.32*50.18
-        const PM_SIZE    = 30.66;   // viewBox 55.63, r=25.04 visible → 13.8/25.04*55.63
+        // Arrow / +- icon sizes calibrated to match the baked PNG visible-brown
+        // diameter (~25 design). Mismatch causes the overlay to extend ~1 px
+        // beyond the baked icon on mobile — at 8 px button width that ~12% extra
+        // looks like the buttons are "off". Sizes pinned to baked-measured value.
+        const ARROW_SIZE = 28.1;   // viewBox 50.18, visible r=22.32 → 12.5/22.32*50.18 ≈ 28.1
+        const PM_SIZE    = 27.77;  // viewBox 55.63, visible r=25.04 → 12.5/25.04*55.63 ≈ 27.77
         // baked PNG 把箭頭與 +/- 都畫成 always-active 咖色 — overlay 也設 alwaysActive
         // 才不會出現綠色 overlay 跟咖色 baked 不重疊的「微偏移」視覺問題。
         const buttons = [
