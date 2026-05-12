@@ -3982,13 +3982,13 @@ const Page = ({ selected, onSelect }) => {
     const N = NEIGHBORS.length;
     const wrap = (i) => (i % N + N) % N;
     const buttons = [
-      // arrows — circle (cx, cy, r=23.7), icon viewBox 50.18, center at viewBox (25.09, 25.09)
       {
         key: "up",
         baseKey: "\u4E0A\u7BAD\u982D",
         cx: 124.06,
         cy: 971.74,
         vbSize: 50.18,
+        alwaysActive: true,
         onClick: () => setCityScrollIdx((i) => i - 1)
       },
       {
@@ -3997,11 +3997,11 @@ const Page = ({ selected, onSelect }) => {
         cx: 124.06,
         cy: 1404.88,
         vbSize: 50.18,
+        alwaysActive: true,
         onClick: () => setCityScrollIdx((i) => i + 1)
       },
-      // +/- — circle r=26.43, icon viewBox 55.63
-      { key: "plus", baseKey: "\u52A0\u865F", cx: 1129.37, cy: 1330.74, vbSize: 55.63 },
-      { key: "minus", baseKey: "\u6E1B\u865F", cx: 1129.37, cy: 1402.16, vbSize: 55.63 }
+      { key: "plus", baseKey: "\u52A0\u865F", cx: 1129.37, cy: 1330.74, vbSize: 55.63, alwaysActive: true },
+      { key: "minus", baseKey: "\u6E1B\u865F", cx: 1129.37, cy: 1402.16, vbSize: 55.63, alwaysActive: true }
     ];
     const PILL_Y = [1017.14, 1089.33, 1161.52, 1233.71, 1305.9];
     const pillNames = [
@@ -4039,7 +4039,7 @@ const Page = ({ selected, onSelect }) => {
             top: `${top / TAOYUAN_H * 100}%`,
             width: `${size / TAOYUAN_W * 100}%`,
             height: `${size / TAOYUAN_H * 100}%`,
-            cursor: b.alwaysActive ? "default" : "pointer",
+            cursor: b.onClick ? "pointer" : "default",
             zIndex: 12
           }
         },
@@ -4289,9 +4289,9 @@ const Page = ({ selected, onSelect }) => {
     const NEIGHBORS = [
       "\u65B0\u5317\u5E02",
       "\u57FA\u9686\u5E02",
-      "\u65B0\u7AF9\u5E02",
       "\u65B0\u7AF9\u7E23",
       "\u82D7\u6817\u7E23",
+      "\u65B0\u7AF9\u5E02",
       "\u53F0\u4E2D\u5E02",
       "\u5F70\u5316\u7E23",
       "\u5357\u6295\u7E23",
@@ -4317,6 +4317,7 @@ const Page = ({ selected, onSelect }) => {
         cx: 102.2,
         cy: 625.8,
         size: ARROW_SIZE,
+        alwaysActive: true,
         onClick: () => setCityScrollIdx((i) => i - 1)
       },
       {
@@ -4325,10 +4326,11 @@ const Page = ({ selected, onSelect }) => {
         cx: 102.2,
         cy: 865.8,
         size: ARROW_SIZE,
+        alwaysActive: true,
         onClick: () => setCityScrollIdx((i) => i + 1)
       },
-      { key: "main_plus", baseKey: "\u52A0\u865F", cx: 659.8, cy: 825.8, size: PM_SIZE },
-      { key: "main_minus", baseKey: "\u6E1B\u865F", cx: 659.8, cy: 865.8, size: PM_SIZE }
+      { key: "main_plus", baseKey: "\u52A0\u865F", cx: 659.8, cy: 825.8, size: PM_SIZE, alwaysActive: true },
+      { key: "main_minus", baseKey: "\u6E1B\u865F", cx: 659.8, cy: 865.8, size: PM_SIZE, alwaysActive: true }
     ];
     const PILL_W = 159.67 * (81.5 / 156.89);
     const PILL_H = 56.36 * (81.5 / 156.89);
@@ -4362,7 +4364,7 @@ const Page = ({ selected, onSelect }) => {
             top: `${top / H * 100}%`,
             width: `${b.size / W * 100}%`,
             height: `${b.size / H * 100}%`,
-            cursor: b.alwaysActive ? "default" : "pointer",
+            cursor: b.onClick ? "pointer" : "default",
             zIndex: 12
           }
         },

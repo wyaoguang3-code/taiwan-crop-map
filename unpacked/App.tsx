@@ -707,21 +707,22 @@ const Page = ({selected, onSelect}) => {
           {(() => {
             const F = 1601 / 1201.1;  // master → detail canvas scale factor
             // 桃園市 永遠固定在中間 slot (slot 3，永遠咖色)，其它 18 縣市 cyclic 環繞在 slot 1/2/4/5。
-            // 這樣不論 scroll 到哪都沒有「邊界」狀態 — 上下箭頭永遠 enabled、桃園永遠在中心。
+            // 桃園 detail 的 baked PNG 預設五顆是 新北/基隆/桃園/新竹市/新竹縣。
             const NEIGHBORS = ['新北市','基隆市','新竹市','新竹縣','苗栗縣','台中市','彰化縣',
                                '南投縣','雲林縣','嘉義市','嘉義縣','台南市','高雄市','屏東縣',
                                '台東縣','花蓮縣','宜蘭縣','台北市'];
             const N = NEIGHBORS.length;
             const wrap = (i) => ((i % N) + N) % N;
+            // arrows + 加減號的 baked PNG 是「咖色 always active」狀態（一致的可操作 UI 控
+            // 件），不是 hover-切換的綠/咖。alwaysActive:true 讓 overlay 也永遠咖色，避免
+            // 被底圖透出的咖色邊緣造成「微偏移」假象。
             const buttons = [
-              // arrows — circle (cx, cy, r=23.7), icon viewBox 50.18, center at viewBox (25.09, 25.09)
-              { key:'up',     baseKey:'上箭頭', cx:124.06, cy:971.74,  vbSize:50.18,
+              { key:'up',     baseKey:'上箭頭', cx:124.06, cy:971.74,  vbSize:50.18, alwaysActive:true,
                 onClick: () => setCityScrollIdx(i => i - 1) },
-              { key:'down',   baseKey:'下箭頭', cx:124.06, cy:1404.88, vbSize:50.18,
+              { key:'down',   baseKey:'下箭頭', cx:124.06, cy:1404.88, vbSize:50.18, alwaysActive:true,
                 onClick: () => setCityScrollIdx(i => i + 1) },
-              // +/- — circle r=26.43, icon viewBox 55.63
-              { key:'plus',   baseKey:'加號',   cx:1129.37, cy:1330.74, vbSize:55.63 },
-              { key:'minus',  baseKey:'減號',   cx:1129.37, cy:1402.16, vbSize:55.63 },
+              { key:'plus',   baseKey:'加號',   cx:1129.37, cy:1330.74, vbSize:55.63, alwaysActive:true },
+              { key:'minus',  baseKey:'減號',   cx:1129.37, cy:1402.16, vbSize:55.63, alwaysActive:true },
             ];
             // city pills — rect at (x, y, 156.89×53.58), icon viewBox (159.67×56.36) with 1.39 padding
             // 5 個固定 slot；slot 3 永遠是 桃園市，其它依 cityScrollIdx 從 NEIGHBORS cyclic 取
@@ -761,7 +762,7 @@ const Page = ({selected, onSelect}) => {
                     top:   `${top  / TAOYUAN_H * 100}%`,
                     width: `${size / TAOYUAN_W * 100}%`,
                     height:`${size / TAOYUAN_H * 100}%`,
-                    cursor: b.alwaysActive ? 'default' : 'pointer',
+                    cursor: b.onClick ? 'pointer' : 'default',
                     zIndex: 12,
                   }}
                 >
@@ -999,7 +1000,9 @@ const Page = ({selected, onSelect}) => {
           箭頭 r=13.8 在 (102.2, 625.8/865.8)、+- 在 (659.8, 825.8/865.8))。
           桃園市永遠在 slot 3 (咖)，其它 18 縣市透過 cityScrollIdx cyclic 環繞。 */}
       {leftMapView === 'main' && (() => {
-        const NEIGHBORS = ['新北市','基隆市','新竹市','新竹縣','苗栗縣','台中市','彰化縣',
+        // 主地圖的 baked PNG 預設五顆是 新北/基隆/桃園/新竹縣/苗栗縣（跟桃園 detail 不同！
+        // 那邊是 新竹市/新竹縣）。獨立的 NEIGHBORS list 才能讓 overlay 跟 baked 對齊。
+        const NEIGHBORS = ['新北市','基隆市','新竹縣','苗栗縣','新竹市','台中市','彰化縣',
                            '南投縣','雲林縣','嘉義市','嘉義縣','台南市','高雄市','屏東縣',
                            '台東縣','花蓮縣','宜蘭縣','台北市'];
         const N = NEIGHBORS.length;
@@ -1007,13 +1010,15 @@ const Page = ({selected, onSelect}) => {
         // Arrow / +- icon size — visible brown circle r=13.8 design; icon viewBox padding included.
         const ARROW_SIZE = 30.93;   // viewBox 50.18, r=22.32 visible → 13.8/22.32*50.18
         const PM_SIZE    = 30.66;   // viewBox 55.63, r=25.04 visible → 13.8/25.04*55.63
+        // baked PNG 把箭頭與 +/- 都畫成 always-active 咖色 — overlay 也設 alwaysActive
+        // 才不會出現綠色 overlay 跟咖色 baked 不重疊的「微偏移」視覺問題。
         const buttons = [
-          { key:'main_up',    baseKey:'上箭頭', cx:102.2, cy:625.8, size:ARROW_SIZE,
+          { key:'main_up',    baseKey:'上箭頭', cx:102.2, cy:625.8, size:ARROW_SIZE, alwaysActive:true,
             onClick: () => setCityScrollIdx(i => i - 1) },
-          { key:'main_down',  baseKey:'下箭頭', cx:102.2, cy:865.8, size:ARROW_SIZE,
+          { key:'main_down',  baseKey:'下箭頭', cx:102.2, cy:865.8, size:ARROW_SIZE, alwaysActive:true,
             onClick: () => setCityScrollIdx(i => i + 1) },
-          { key:'main_plus',  baseKey:'加號',   cx:659.8, cy:825.8, size:PM_SIZE },
-          { key:'main_minus', baseKey:'減號',   cx:659.8, cy:865.8, size:PM_SIZE },
+          { key:'main_plus',  baseKey:'加號',   cx:659.8, cy:825.8, size:PM_SIZE,   alwaysActive:true },
+          { key:'main_minus', baseKey:'減號',   cx:659.8, cy:865.8, size:PM_SIZE,   alwaysActive:true },
         ];
         // Pill icon size: rect 81.5 design wide, but pill SVG has 1.39 padding inside viewBox 159.67.
         const PILL_W = 159.67 * (81.5 / 156.89);  // 82.93
@@ -1047,7 +1052,7 @@ const Page = ({selected, onSelect}) => {
                 top:   `${top   / H * 100}%`,
                 width: `${b.size / W * 100}%`,
                 height:`${b.size / H * 100}%`,
-                cursor: b.alwaysActive ? 'default' : 'pointer',
+                cursor: b.onClick ? 'pointer' : 'default',
                 zIndex: 12,
               }}
             >
