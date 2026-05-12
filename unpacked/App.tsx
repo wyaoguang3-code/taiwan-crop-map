@@ -773,7 +773,7 @@ const Page = ({selected, onSelect}) => {
                     zIndex: 12,
                   }}
                 >
-                  <svg viewBox={svg.viewBox} width="100%" height="100%"
+                  <svg viewBox={svg.viewBox} width="100%" height="100%" preserveAspectRatio="none" style={{display:'block'}}
                        dangerouslySetInnerHTML={{__html: svg.body}}/>
                 </div>
               );
@@ -813,7 +813,7 @@ const Page = ({selected, onSelect}) => {
                     zIndex: 12,
                   }}
                 >
-                  <svg viewBox={svg.viewBox} width="100%" height="100%"
+                  <svg viewBox={svg.viewBox} width="100%" height="100%" preserveAspectRatio="none" style={{display:'block'}}
                        dangerouslySetInnerHTML={{__html: svg.body}}/>
                 </div>
               );
@@ -1077,7 +1077,7 @@ const Page = ({selected, onSelect}) => {
                 zIndex: 12,
               }}
             >
-              <svg viewBox={svg.viewBox} width="100%" height="100%"
+              <svg viewBox={svg.viewBox} width="100%" height="100%" preserveAspectRatio="none" style={{display:'block'}}
                    dangerouslySetInnerHTML={{__html: svg.body}}/>
             </div>
           );
@@ -1103,7 +1103,7 @@ const Page = ({selected, onSelect}) => {
                 zIndex: 12,
               }}
             >
-              <svg viewBox={svg.viewBox} width="100%" height="100%"
+              <svg viewBox={svg.viewBox} width="100%" height="100%" preserveAspectRatio="none" style={{display:'block'}}
                    dangerouslySetInnerHTML={{__html: svg.body}}/>
             </div>
           );
