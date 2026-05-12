@@ -1,6 +1,18 @@
 
 const { useState } = React;
 
+/* ── DesignImage ────────────────────────────────────────────────────────────
+ * The 3 large illustrated backgrounds are AVIF (smaller than WebP at the same
+ * quality, ~70% smaller than the original JPEGs). Universal support among
+ * 2023+ browsers; pre-AVIF Safari users just see no background.
+ */
+const DesignImage = ({ name, alt = '', style }) => {
+  const e = (typeof window !== 'undefined' && window.DESIGN_IMGS && window.DESIGN_IMGS[name]) || '';
+  // Backwards-compat for older repacks that emitted {avif, webp} objects.
+  const src = typeof e === 'string' ? e : (e.avif || e.webp || '');
+  return <img src={src} alt={alt} style={style}/>;
+};
+
 /* ── async resources ─────────────────────────────────────────────────────────
  * The big data blobs (window.DATASETS / COUNTY_CHARS / BUTTON_SVGS /
  * TAOYUAN_CROPS) used to be inlined into the HTML (~970 KB). Now repack.py
@@ -642,9 +654,8 @@ const Page = ({selected, onSelect}) => {
       containerType: 'inline-size',
     }}>
       {/* Full design as page background */}
-      <img
-        src={(window.DESIGN_IMGS && window.DESIGN_IMGS.full_page) || ''}
-        alt=""
+      <DesignImage
+        name="full_page"
         style={{
           position:'absolute', inset:0,
           width:'100%', height:'100%',
@@ -663,8 +674,8 @@ const Page = ({selected, onSelect}) => {
           height:`${MAP_H / H * 100}%`,
           zIndex: 10,
         }}>
-          <img
-            src={(window.DESIGN_IMGS && window.DESIGN_IMGS.taoyuan_detail) || ''}
+          <DesignImage
+            name="taoyuan_detail"
             alt="桃園市鄉鎮詳細地圖"
             style={{
               position:'absolute', inset:0,
@@ -1793,8 +1804,8 @@ const TaoyuanDetail = ({onBack}) => {
       containerType: 'inline-size',
       background: '#ffffff',
     }}>
-      <img
-        src={(window.DESIGN_IMGS && window.DESIGN_IMGS.taoyuan_detail) || ''}
+      <DesignImage
+        name="taoyuan_detail"
         alt="桃園市鄉鎮詳細地圖"
         style={{
           position:'absolute', inset:0,
@@ -1851,8 +1862,8 @@ const Dashboard = ({onBack}) => (
           zIndex: 5,
         }}
       />
-      <img
-        src={(window.DESIGN_IMGS && window.DESIGN_IMGS.tomato_dashboard) || ''}
+      <DesignImage
+        name="tomato_dashboard"
         alt="桃園市 番茄市場儀表板"
         style={{display:'block', width:1440, height:'auto', userSelect:'none'}}
       />

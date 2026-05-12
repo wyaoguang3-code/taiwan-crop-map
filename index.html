@@ -3395,7 +3395,12 @@ body { font-family:'Noto Sans TC',sans-serif; background:#e8ddd0; display:flex; 
 
 
 
-<script>window.DESIGN_IMGS={"full_page": "assets/full_page.webp", "tomato_dashboard": "assets/tomato_dashboard.webp", "taoyuan_detail": "assets/taoyuan_detail.webp"};</script><script>window.DATASETS=window.DATASETS||{};window.COUNTY_CHARS=window.COUNTY_CHARS||{};window.BUTTON_SVGS=window.BUTTON_SVGS||{};window.TAOYUAN_CROPS=window.TAOYUAN_CROPS||{};fetch('assets/page-data.json').then(r=>r.json()).then(d=>{window.DATASETS=d.datasets||{};window.COUNTY_CHARS=d.county_chars||{};window.BUTTON_SVGS=d.button_svgs||{};window.TAOYUAN_CROPS=d.taoyuan_crops||{};window.dispatchEvent(new CustomEvent('page-data-ready'));}).catch(e=>console.warn('[page-data] fetch failed',e));</script><script>const { useState } = React;
+<script>window.DESIGN_IMGS={"full_page": "assets/full_page.avif", "tomato_dashboard": "assets/tomato_dashboard.avif", "taoyuan_detail": "assets/taoyuan_detail.avif"};</script><script>window.DATASETS=window.DATASETS||{};window.COUNTY_CHARS=window.COUNTY_CHARS||{};window.BUTTON_SVGS=window.BUTTON_SVGS||{};window.TAOYUAN_CROPS=window.TAOYUAN_CROPS||{};fetch('assets/page-data.json').then(r=>r.json()).then(d=>{window.DATASETS=d.datasets||{};window.COUNTY_CHARS=d.county_chars||{};window.BUTTON_SVGS=d.button_svgs||{};window.TAOYUAN_CROPS=d.taoyuan_crops||{};window.dispatchEvent(new CustomEvent('page-data-ready'));}).catch(e=>console.warn('[page-data] fetch failed',e));</script><script>const { useState } = React;
+const DesignImage = ({ name, alt = "", style }) => {
+  const e = typeof window !== "undefined" && window.DESIGN_IMGS && window.DESIGN_IMGS[name] || "";
+  const src = typeof e === "string" ? e : e.avif || e.webp || "";
+  return /* @__PURE__ */ React.createElement("img", { src, alt, style });
+};
 let _pageDataReady = !!(typeof window !== "undefined" && window.COUNTY_CHARS && Object.keys(window.COUNTY_CHARS).length > 0);
 const _pageDataListeners = /* @__PURE__ */ new Set();
 if (typeof window !== "undefined") {
@@ -3901,10 +3906,9 @@ const Page = ({ selected, onSelect }) => {
     // Establish a query container so children can scale via cqw.
     containerType: "inline-size"
   } }, /* @__PURE__ */ React.createElement(
-    "img",
+    DesignImage,
     {
-      src: window.DESIGN_IMGS && window.DESIGN_IMGS.full_page || "",
-      alt: "",
+      name: "full_page",
       style: {
         position: "absolute",
         inset: 0,
@@ -3923,9 +3927,9 @@ const Page = ({ selected, onSelect }) => {
     height: `${MAP_H / H * 100}%`,
     zIndex: 10
   } }, /* @__PURE__ */ React.createElement(
-    "img",
+    DesignImage,
     {
-      src: window.DESIGN_IMGS && window.DESIGN_IMGS.taoyuan_detail || "",
+      name: "taoyuan_detail",
       alt: "\u6843\u5712\u5E02\u9109\u93AE\u8A73\u7D30\u5730\u5716",
       style: {
         position: "absolute",
@@ -4980,9 +4984,9 @@ const TaoyuanDetail = ({ onBack }) => {
     containerType: "inline-size",
     background: "#ffffff"
   } }, /* @__PURE__ */ React.createElement(
-    "img",
+    DesignImage,
     {
-      src: window.DESIGN_IMGS && window.DESIGN_IMGS.taoyuan_detail || "",
+      name: "taoyuan_detail",
       alt: "\u6843\u5712\u5E02\u9109\u93AE\u8A73\u7D30\u5730\u5716",
       style: {
         position: "absolute",
@@ -5042,9 +5046,9 @@ const Dashboard = ({ onBack }) => /* @__PURE__ */ React.createElement("div", { s
     }
   }
 ), /* @__PURE__ */ React.createElement(
-  "img",
+  DesignImage,
   {
-    src: window.DESIGN_IMGS && window.DESIGN_IMGS.tomato_dashboard || "",
+    name: "tomato_dashboard",
     alt: "\u6843\u5712\u5E02 \u756A\u8304\u5E02\u5834\u5100\u8868\u677F",
     style: { display: "block", width: 1440, height: "auto", userSelect: "none" }
   }

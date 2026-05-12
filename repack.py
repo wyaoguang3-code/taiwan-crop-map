@@ -47,35 +47,53 @@ regions = {}
 
 # Bundle the full-page design export. The new App renders this single image
 # as the page background and only overlays the 2 dynamic data cards on top.
-# Design background images are served as separate files (not inlined as data: URLs)
-# so the browser can decode them in parallel with HTML parsing instead of blocking
-# load on ~3 MB of base64 image data. Re-encoded to WebP at quality 75/80 — saves
-# roughly 70% over the original JPEG/PNG with no visible quality loss for these
-# illustrated backgrounds.
+# Design background images are served as separate files. We:
+#   - downscale from 2x retina to 1.5x (saves ~30% pixels with imperceptible
+#     loss on most screens),
+#   - emit BOTH AVIF (smaller on modern browsers, Safari 16.4+ supports) and
+#     WebP (fallback for older Safari). JSX uses <picture> to pick one.
+# Compared to the original JPEGs/PNGs this is roughly 75-90% smaller.
 ASSETS = ROOT / "assets"
 ASSETS.mkdir(exist_ok=True)
 try:
     from PIL import Image as _Image
+    import pillow_avif  # registers the AVIF codec; import is the side effect
+    _HAS_AVIF = True
 except ImportError:
-    _Image = None
+    try:
+        from PIL import Image as _Image
+    except ImportError:
+        _Image = None
+    _HAS_AVIF = False
+
+SCALE = 0.75   # 2x retina source → 1.5x retina output
 design_imgs = {}
-for name, src_ext, opts in [
-    ("full_page",        "jpg", {"quality": 75}),
-    ("tomato_dashboard", "jpg", {"quality": 75}),
-    ("taoyuan_detail",   "png", {"quality": 80}),  # has alpha — WebP keeps it
+# We ship AVIF only (Safari 16.4+ / 2023-03; all modern Chromium / Firefox 113+).
+# Tried <picture> with AVIF + WebP fallback, but the HTML preload scanner
+# eagerly fetches the <img src=webp> before the parser knows there's an AVIF
+# <source>, so both files end up downloaded (worse than not bothering). For
+# the very small Safari < 16.4 audience the React UI still renders — they
+# just see no design background.
+for name, src_ext, q in [
+    ("full_page",        "jpg", 70),
+    ("tomato_dashboard", "jpg", 70),
+    ("taoyuan_detail",   "png", 70),
 ]:
     src = UNPACKED / f"{name}.{src_ext}"
-    if not src.exists():
+    if not src.exists() or _Image is None:
         continue
-    dst = ASSETS / f"{name}.webp"
-    if _Image is not None:
-        _Image.open(src).save(dst, "WEBP", **opts)
+    im = _Image.open(src)
+    W, H = im.size
+    small = im.resize((int(W * SCALE), int(H * SCALE)), _Image.LANCZOS)
+    if _HAS_AVIF:
+        dst = ASSETS / f"{name}.avif"
+        small.save(dst, "AVIF", quality=q)
     else:
-        # Fallback: ship original format if Pillow unavailable.
-        dst = ASSETS / f"{name}.{src_ext}"
-        dst.write_bytes(src.read_bytes())
+        # Pillow without AVIF plugin → fall back to WebP so build still works.
+        dst = ASSETS / f"{name}.webp"
+        small.save(dst, "WEBP", quality=q)
     design_imgs[name] = f"assets/{dst.name}"
-print(f"Design assets (webp): {list(design_imgs.keys())}")
+print(f"Design assets ({'avif' if _HAS_AVIF else 'webp'}, 1.5x, q={q}): {list(design_imgs.keys())}")
 
 # Bundle per-county character SVGs (hover-to-show on the map).
 # Files at unpacked/county_chars/<key>.svg are loaded by key.
