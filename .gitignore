@@ -16,3 +16,4 @@ unpacked/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*
 .claude/
 *.swp
 __pycache__/
+unpacked/full_page_with_tomato.jpg
