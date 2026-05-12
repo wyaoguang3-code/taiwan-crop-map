@@ -426,12 +426,11 @@ const ScaledOverlay = ({x, y, w, h, children}) => (
   </div>
 );
 
-/* ── MAP CLICK HOTSPOT ─────────────────────────────────────────────────────
- * Single click region centered on the 番茄寶寶 character standing on 桃園市
- * in the grey map. Coordinates are in the 1440×2996 design canvas. Tested
- * visually against full_page.jpg to land on the body of the tomato mascot.
+/* ── MAP CLICK NAVIGATION ──────────────────────────────────────────────────
+ * 點擊桃園市 polygon (51:5084) → 切到桃園 detail / 蕃茄 dashboard view。
+ * 舊的 TOMATO_HOTSPOT 透明 click 圓圈已移除（用 polygon-shaped click 取代）。
  */
-const TOMATO_HOTSPOT = { id:'taoyuan', cx: 482, cy: 200, r: 44 };
+const TAOYUAN_POLYGON_ID = '51_5084';
 
 /* ── TW COUNTIES POLYGON OVERLAY ──────────────────────────────────────────
  * 18 個縣市的 SVG path，從 Figma 設計檔抽出（node id 51:5082~51:5101）。
@@ -592,8 +591,8 @@ const Page = ({selected, onSelect}) => {
               onMouseEnter={c.isBase ? undefined : () => setHovered(c.id)}
               onMouseLeave={c.isBase ? undefined : () => setHovered(null)}
               onClick={c.isBase ? undefined : () => {
-                // 暫時所有縣市都 select 'taoyuan'（其他縣市無資料）— 未來各縣市可獨立
-                if (c.id === '51_5096') onSelect('taoyuan');
+                // 點桃園市 polygon → 切到桃園 detail / 蕃茄 dashboard
+                if (c.id === TAOYUAN_POLYGON_ID) onSelect('taoyuan');
               }}
             />
           </svg>
@@ -610,14 +609,6 @@ const Page = ({selected, onSelect}) => {
             onMouseLeave={() => setHovered(null)}
           />
         ))}
-
-        {/* 原本的 TOMATO_HOTSPOT click 區保留 — 角色身上仍可點 */}
-        <circle
-          cx={TOMATO_HOTSPOT.cx} cy={TOMATO_HOTSPOT.cy} r={TOMATO_HOTSPOT.r}
-          fill="transparent"
-          style={{cursor:'pointer'}}
-          onClick={() => onSelect(TOMATO_HOTSPOT.id)}
-        />
 
         {/* Hovered 角色：渲染在 polygon 中心上方 — 用 SVG <image> 把角色 SVG 浮現 */}
         {hovered && (() => {
