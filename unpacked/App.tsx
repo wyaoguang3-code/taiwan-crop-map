@@ -498,9 +498,9 @@ const EXTRA_CITY_HOTSPOTS = [
   { id: 'extra_chiayi_city',  cx: 327, cy: 551, r: 22 }, // 在 i_chiayi_county 區內
 ];
 
-// 角色顯示尺寸 — 在 design canvas 上的寬高
-const CHAR_DISPLAY_W = 220;
-const CHAR_DISPLAY_H = 220;
+// 角色顯示尺寸 — 比照 Figma 桃園 design (Group 192 約 117×129)
+const CHAR_DISPLAY_W = 117;
+const CHAR_DISPLAY_H = 129;
 
 // 縣市中文名 — 供 hover 時顯示的「桃園市」style 名稱方框用
 const COUNTY_NAMES = {
@@ -640,13 +640,13 @@ const Page = ({selected, onSelect}) => {
           const src = charsLib[charKey];
           // 角色置於 polygon 中心上方（向上偏移，讓角色「站」在 polygon 上）
           const w = CHAR_DISPLAY_W, h = CHAR_DISPLAY_H;
-          // 縣市名稱方框 — 沿用桃園市 design：米白底棕邊圓角
+          // 縣市名稱方框 — 比照 Figma 桃園 District_button (64×24, rounded ~13)
           // 放在角色下方（與原本 桃園市 design 一致：character 站立在 polygon 上、label 在腳下）
           const name = COUNTY_NAMES[hovered];
-          const labelW = 88, labelH = 30;
+          const labelW = 64, labelH = 24;
           const labelX = centerX - labelW / 2;
-          // character 底端 ≈ centerY + 0.15h；label 再往下 6px
-          const labelY = centerY + h * 0.15 + 6;
+          // character 底端 ≈ centerY + 0.15h；label 再往下 4px
+          const labelY = centerY + h * 0.15 + 4;
           return (
             <g style={{pointerEvents: 'none'}}>
               {src && (
@@ -669,7 +669,7 @@ const Page = ({selected, onSelect}) => {
                     x={labelW/2} y={labelH/2 + 1}
                     textAnchor="middle" dominantBaseline="middle"
                     fill="#9b897c"
-                    fontSize="16"
+                    fontSize="12"
                     fontFamily="'Noto Sans TC', 'Noto Sans CJK TC', sans-serif"
                     fontWeight="500"
                   >
