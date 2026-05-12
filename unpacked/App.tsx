@@ -559,6 +559,10 @@ const Page = ({selected, onSelect}) => {
   const [hovered, setHovered] = React.useState(null);
   // 左側 map 切換：'main' = 台灣全圖、'taoyuan' = 桃園鄉鎮 detail
   const [leftMapView, setLeftMapView] = React.useState('main');
+  // 桃園 detail 上的按鈕 hover 狀態 (城市 pill / 加減號 / 上下箭頭)
+  const [hoveredBtn, setHoveredBtn] = React.useState(null);
+  // 城市 pill 滾動位置 — 預設 0 讓可見 5 顆對齊 PNG 底圖 (新北/基隆/桃園/新竹市/新竹縣)
+  const [cityScrollIdx, setCityScrollIdx] = React.useState(0);
 
   const W = 1440, H = 2996;
   // 左側 map area 在 design canvas 上的位置（Rectangle 4 from Figma）
@@ -606,33 +610,124 @@ const Page = ({selected, onSelect}) => {
               userSelect:'none', pointerEvents:'none',
             }}
           />
-          {/* 「回上一頁」click hotspot — 對應 detail design (1201×1500) 上的 button 位置 (50, 25, 130×45) */}
+          {/* 「回上一頁」click hotspot — 回到台灣全圖
+              master 桃園地圖.svg rect (45.61, 60.4, 252.94×53.58) × 1.333 → in-place 1601×2000 design */}
           <div
             onClick={() => setLeftMapView('main')}
             title="回上一頁"
             style={{
               position:'absolute',
-              left:  `${50/1201*100}%`,
-              top:   `${25/1500*100}%`,
-              width: `${130/1201*100}%`,
-              height:`${45/1500*100}%`,
+              left:  `${(45.61 * 1.333) / TAOYUAN_W * 100}%`,
+              top:   `${(60.4  * 1.333) / TAOYUAN_H * 100}%`,
+              width: `${(252.94 * 1.333) / TAOYUAN_W * 100}%`,
+              height:`${(53.58 * 1.333) / TAOYUAN_H * 100}%`,
               cursor:'pointer',
-              zIndex: 11,
+              zIndex: 13,
             }}
           />
 
-          {/* 上箭頭棕色填充圓圈 overlay — 補回 user 在 Figma 不小心連同 group 一起 hide 掉的部分。
-              位置 (165, 1295) 在 detail design canvas 1601×2000、跟下箭頭視覺一致 */}
-          <svg
-            viewBox={`0 0 ${TAOYUAN_W} ${TAOYUAN_H}`}
-            preserveAspectRatio="none"
-            style={{position:'absolute', inset:0, width:'100%', height:'100%', zIndex:10, pointerEvents:'none'}}
-          >
-            <g transform="translate(165, 1295)">
-              <circle cx="0" cy="0" r="32" fill="#8E6040"/>
-              <path d="M -12 7 L 0 -8 L 12 7" stroke="white" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-            </g>
-          </svg>
+          {/* 城市 pill / +-/ 上下箭頭 hover overlay。座標來自 Figma 原始檔 桃園地圖.svg
+              (master viewBox 1201.1×1500)，乘以 1601/1201.1 ≈ 1.333 換算到本 detail
+              design canvas (1601×2000)。每顆按鈕的 SVG 從 window.BUTTON_SVGS 取 (綠/咖
+              兩個 state)，桃園市 pill 永遠是選中 (咖)，其餘 hover 時切到 咖。 */}
+          {(() => {
+            const F = 1601 / 1201.1;  // master → detail canvas scale factor
+            // 桃園市 永遠固定在中間 slot (slot 3，永遠咖色)，其它 18 縣市 cyclic 環繞在 slot 1/2/4/5。
+            // 這樣不論 scroll 到哪都沒有「邊界」狀態 — 上下箭頭永遠 enabled、桃園永遠在中心。
+            const NEIGHBORS = ['新北市','基隆市','新竹市','新竹縣','苗栗縣','台中市','彰化縣',
+                               '南投縣','雲林縣','嘉義市','嘉義縣','台南市','高雄市','屏東縣',
+                               '台東縣','花蓮縣','宜蘭縣','台北市'];
+            const N = NEIGHBORS.length;
+            const wrap = (i) => ((i % N) + N) % N;
+            const buttons = [
+              // arrows — circle (cx, cy, r=23.7), icon viewBox 50.18, center at viewBox (25.09, 25.09)
+              { key:'up',     baseKey:'上箭頭', cx:124.06, cy:971.74,  vbSize:50.18,
+                onClick: () => setCityScrollIdx(i => i - 1) },
+              { key:'down',   baseKey:'下箭頭', cx:124.06, cy:1404.88, vbSize:50.18,
+                onClick: () => setCityScrollIdx(i => i + 1) },
+              // +/- — circle r=26.43, icon viewBox 55.63
+              { key:'plus',   baseKey:'加號',   cx:1129.37, cy:1330.74, vbSize:55.63 },
+              { key:'minus',  baseKey:'減號',   cx:1129.37, cy:1402.16, vbSize:55.63 },
+            ];
+            // city pills — rect at (x, y, 156.89×53.58), icon viewBox (159.67×56.36) with 1.39 padding
+            // 5 個固定 slot；slot 3 永遠是 桃園市，其它依 cityScrollIdx 從 NEIGHBORS cyclic 取
+            const PILL_Y = [1017.14, 1089.33, 1161.52, 1233.71, 1305.90];
+            const pillNames = [
+              NEIGHBORS[wrap(cityScrollIdx)],
+              NEIGHBORS[wrap(cityScrollIdx + 1)],
+              '桃園市',
+              NEIGHBORS[wrap(cityScrollIdx + 2)],
+              NEIGHBORS[wrap(cityScrollIdx + 3)],
+            ];
+            const pills = pillNames.map((name, i) => ({
+              key: `pill_${i}`,
+              baseKey: name,
+              y: PILL_Y[i],
+              alwaysActive: name === '桃園市',
+            }));
+            const renderBtn = (b) => {
+              const isActive = b.alwaysActive || hoveredBtn === b.key;
+              const svgKey = `${b.baseKey}${isActive ? '咖' : '綠'}`;
+              const svg = window.BUTTON_SVGS?.[svgKey];
+              if (!svg) return null;
+              // icon top-left (master) = circle center − vbSize/2
+              const halfVb = b.vbSize / 2;
+              const left = (b.cx - halfVb) * F;
+              const top  = (b.cy - halfVb) * F;
+              const size = b.vbSize * F;
+              return (
+                <div
+                  key={b.key}
+                  onMouseEnter={() => !b.alwaysActive && setHoveredBtn(b.key)}
+                  onMouseLeave={() => !b.alwaysActive && setHoveredBtn(null)}
+                  onClick={b.onClick}
+                  style={{
+                    position:'absolute',
+                    left:  `${left / TAOYUAN_W * 100}%`,
+                    top:   `${top  / TAOYUAN_H * 100}%`,
+                    width: `${size / TAOYUAN_W * 100}%`,
+                    height:`${size / TAOYUAN_H * 100}%`,
+                    cursor: b.alwaysActive ? 'default' : 'pointer',
+                    zIndex: 12,
+                  }}
+                >
+                  <svg viewBox={svg.viewBox} width="100%" height="100%"
+                       dangerouslySetInnerHTML={{__html: svg.body}}/>
+                </div>
+              );
+            };
+            const renderPill = (p) => {
+              const isActive = p.alwaysActive || hoveredBtn === p.key;
+              const svgKey = `${p.baseKey}${isActive ? '咖' : '綠'}`;
+              const svg = window.BUTTON_SVGS?.[svgKey];
+              if (!svg) return null;
+              // rect (45.61, y, 156.89×53.58) sits inside icon viewBox at (1.39, 1.39)
+              const left = (45.61 - 1.39) * F;
+              const top  = (p.y  - 1.39) * F;
+              const w = 159.67 * F;
+              const h = 56.36  * F;
+              return (
+                <div
+                  key={p.key}
+                  onMouseEnter={() => !p.alwaysActive && setHoveredBtn(p.key)}
+                  onMouseLeave={() => !p.alwaysActive && setHoveredBtn(null)}
+                  style={{
+                    position:'absolute',
+                    left:  `${left / TAOYUAN_W * 100}%`,
+                    top:   `${top  / TAOYUAN_H * 100}%`,
+                    width: `${w / TAOYUAN_W * 100}%`,
+                    height:`${h / TAOYUAN_H * 100}%`,
+                    cursor: p.alwaysActive ? 'default' : 'pointer',
+                    zIndex: 12,
+                  }}
+                >
+                  <svg viewBox={svg.viewBox} width="100%" height="100%"
+                       dangerouslySetInnerHTML={{__html: svg.body}}/>
+                </div>
+              );
+            };
+            return <>{buttons.map(renderBtn)}{pills.map(renderPill)}</>;
+          })()}
 
           {/* 13 個鄉鎮 polygon overlay：hover 變色 + 作物名 badge */}
           <svg
@@ -659,26 +754,45 @@ const Page = ({selected, onSelect}) => {
                   }}
                   onMouseEnter={() => setHovered(t.id)}
                   onMouseLeave={() => setHovered(null)}
+                  onClick={() => {
+                    // 牛蕃茄 (1_30) → 番茄市場儀表板
+                    if (t.crop === '牛蕃茄') window.location.hash = 'dashboard';
+                  }}
                 />
               </svg>
             ))}
-            {/* 作物名 badge — 沿用主地圖 design：米白底棕邊圓角 */}
+            {/* hover 時顯示：作物角色 SVG (window.TAOYUAN_CROPS) + 作物名 badge
+                角色置於 polygon 中心上方、badge 緊跟角色下方（與主地圖 county hover 同 layout） */}
             {hovered && (() => {
               const t = TAOYUAN_TOWNSHIPS.find(x => x.id === hovered);
               if (!t) return null;
               const cx = t.cx + t.cw/2;
               const cy = t.cy + t.ch/2;
-              const labelW = 100, labelH = 32;
+              const cropChars = (typeof window !== 'undefined' && window.TAOYUAN_CROPS) || {};
+              const charSrc = cropChars[t.crop];
+              const charSize = 280;
+              const labelW = 180, labelH = 56;
+              const labelY = cy + charSize*0.15 + 6;
               return (
-                <g transform={`translate(${cx - labelW/2}, ${cy + t.ch/2 - labelH - 4})`} style={{pointerEvents:'none'}}>
-                  <rect width={labelW} height={labelH} rx={labelH/2}
-                        fill="#fbf6e9" stroke="#d1c4af" strokeWidth={2}/>
-                  <text x={labelW/2} y={labelH/2 + 1}
-                        textAnchor="middle" dominantBaseline="middle"
-                        fill="#9b897c" fontSize={18} fontWeight={500}
-                        fontFamily="'Noto Sans TC', 'Noto Sans CJK TC', sans-serif">
-                    {t.crop}
-                  </text>
+                <g style={{pointerEvents:'none'}}>
+                  {charSrc && (
+                    <image href={charSrc}
+                           x={cx - charSize/2}
+                           y={cy - charSize*0.85}
+                           width={charSize}
+                           height={charSize}
+                           preserveAspectRatio="xMidYMid meet"/>
+                  )}
+                  <g transform={`translate(${cx - labelW/2}, ${labelY})`}>
+                    <rect width={labelW} height={labelH} rx={labelH/2}
+                          fill="#fbf6e9" stroke="#d1c4af" strokeWidth={2.5}/>
+                    <text x={labelW/2} y={labelH/2 + 1}
+                          textAnchor="middle" dominantBaseline="middle"
+                          fill="#9b897c" fontSize={30} fontWeight={500}
+                          fontFamily="'Noto Sans TC', 'Noto Sans CJK TC', sans-serif">
+                      {t.crop}
+                    </text>
+                  </g>
                 </g>
               );
             })()}
@@ -805,6 +919,98 @@ const Page = ({selected, onSelect}) => {
         })()}
       </svg>}
 
+      {/* 主地圖左下角 hover 按鈕 — 跟 taoyuan detail 一樣的 cycle 邏輯，
+          差別是座標在主頁 design canvas (1440×2996) 而不是 taoyuan canvas (1601×2000)。
+          位置從 full_page.jpg 像素量出 (pill x=61.5/y=731.5±n*40、寬 81.5、高 28.5；
+          箭頭 r=13.8 在 (102.2, 625.8/865.8)、+- 在 (659.8, 825.8/865.8))。
+          桃園市永遠在 slot 3 (咖)，其它 18 縣市透過 cityScrollIdx cyclic 環繞。 */}
+      {leftMapView === 'main' && (() => {
+        const NEIGHBORS = ['新北市','基隆市','新竹市','新竹縣','苗栗縣','台中市','彰化縣',
+                           '南投縣','雲林縣','嘉義市','嘉義縣','台南市','高雄市','屏東縣',
+                           '台東縣','花蓮縣','宜蘭縣','台北市'];
+        const N = NEIGHBORS.length;
+        const wrap = (i) => ((i % N) + N) % N;
+        // Arrow / +- icon size — visible brown circle r=13.8 design; icon viewBox padding included.
+        const ARROW_SIZE = 30.93;   // viewBox 50.18, r=22.32 visible → 13.8/22.32*50.18
+        const PM_SIZE    = 30.66;   // viewBox 55.63, r=25.04 visible → 13.8/25.04*55.63
+        const buttons = [
+          { key:'main_up',    baseKey:'上箭頭', cx:102.2, cy:625.8, size:ARROW_SIZE,
+            onClick: () => setCityScrollIdx(i => i - 1) },
+          { key:'main_down',  baseKey:'下箭頭', cx:102.2, cy:865.8, size:ARROW_SIZE,
+            onClick: () => setCityScrollIdx(i => i + 1) },
+          { key:'main_plus',  baseKey:'加號',   cx:659.8, cy:825.8, size:PM_SIZE },
+          { key:'main_minus', baseKey:'減號',   cx:659.8, cy:865.8, size:PM_SIZE },
+        ];
+        // Pill icon size: rect 81.5 design wide, but pill SVG has 1.39 padding inside viewBox 159.67.
+        const PILL_W = 159.67 * (81.5 / 156.89);  // 82.93
+        const PILL_H =  56.36 * (81.5 / 156.89);  // 29.29
+        const PILL_PAD = 1.39 * (81.5 / 156.89);  // 0.722
+        const PILL_X = 61.5 - PILL_PAD;            // icon top-left x
+        const PILL_TOP_Y = [651.5, 691.5, 731.5, 771.5, 811.5].map(y => y - PILL_PAD);
+        const pillNames = [
+          NEIGHBORS[wrap(cityScrollIdx)],
+          NEIGHBORS[wrap(cityScrollIdx + 1)],
+          '桃園市',
+          NEIGHBORS[wrap(cityScrollIdx + 2)],
+          NEIGHBORS[wrap(cityScrollIdx + 3)],
+        ];
+        const renderIcon = (b) => {
+          const isActive = b.alwaysActive || hoveredBtn === b.key;
+          const svgKey = `${b.baseKey}${isActive ? '咖' : '綠'}`;
+          const svg = window.BUTTON_SVGS?.[svgKey];
+          if (!svg) return null;
+          const left = b.cx - b.size/2;
+          const top  = b.cy - b.size/2;
+          return (
+            <div
+              key={b.key}
+              onMouseEnter={() => !b.alwaysActive && setHoveredBtn(b.key)}
+              onMouseLeave={() => !b.alwaysActive && setHoveredBtn(null)}
+              onClick={b.onClick}
+              style={{
+                position:'absolute',
+                left:  `${left  / W * 100}%`,
+                top:   `${top   / H * 100}%`,
+                width: `${b.size / W * 100}%`,
+                height:`${b.size / H * 100}%`,
+                cursor: b.alwaysActive ? 'default' : 'pointer',
+                zIndex: 12,
+              }}
+            >
+              <svg viewBox={svg.viewBox} width="100%" height="100%"
+                   dangerouslySetInnerHTML={{__html: svg.body}}/>
+            </div>
+          );
+        };
+        const renderPill = (name, slot) => {
+          const key = `main_pill_${slot}`;
+          const alwaysActive = name === '桃園市';
+          const isActive = alwaysActive || hoveredBtn === key;
+          const svg = window.BUTTON_SVGS?.[`${name}${isActive ? '咖' : '綠'}`];
+          if (!svg) return null;
+          return (
+            <div
+              key={key}
+              onMouseEnter={() => !alwaysActive && setHoveredBtn(key)}
+              onMouseLeave={() => !alwaysActive && setHoveredBtn(null)}
+              style={{
+                position:'absolute',
+                left:  `${PILL_X / W * 100}%`,
+                top:   `${PILL_TOP_Y[slot] / H * 100}%`,
+                width: `${PILL_W / W * 100}%`,
+                height:`${PILL_H / H * 100}%`,
+                cursor: alwaysActive ? 'default' : 'pointer',
+                zIndex: 12,
+              }}
+            >
+              <svg viewBox={svg.viewBox} width="100%" height="100%"
+                   dangerouslySetInnerHTML={{__html: svg.body}}/>
+            </div>
+          );
+        };
+        return <>{buttons.map(renderIcon)}{pillNames.map((n, i) => renderPill(n, i))}</>;
+      })()}
+
       {/* Animated mascot video — replaces the 3-mascot still in the middle.
           Full-width white panel (covers the entire row in the background image)
           with the video centred via objectFit:contain.                         */}
@@ -859,6 +1065,36 @@ let _tmCache = (typeof window !== 'undefined' && window.DATASETS && window.DATAS
 let _tmFetched = false;
 const _tmListeners = new Set();
 
+// nongzhidao's cron currently updates `daily` + `latest_price` every day but
+// the `weekly`/`monthly`/`yearly` aggregations are frozen (last refreshed 2026-05-04).
+// We rebuild them client-side from the fresh `daily` so every chart matches today's data.
+const _isoYearWeek = (dateStr) => {
+  const [Y, M, D] = dateStr.split('-').map(Number);
+  const d = new Date(Date.UTC(Y, M - 1, D));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));   // Thursday of the ISO week
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+};
+const _aggregateDaily = (daily, keyFn) => {
+  const groups = {};
+  for (const r of daily) {
+    if (r.price == null) continue;
+    const key = keyFn(r);
+    if (!groups[key]) groups[key] = { vsum: 0, pvsum: 0 };
+    const v = r.volume || 0;
+    groups[key].vsum  += v;
+    groups[key].pvsum += r.price * v;
+  }
+  return Object.entries(groups)
+    .sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)
+    .map(([key, g]) => ({
+      key,
+      price:  g.vsum > 0 ? Math.round(g.pvsum / g.vsum * 100) / 100 : 0,
+      volume: g.vsum,
+    }));
+};
+
 const useTomatoMarket = () => {
   const [data, setData] = React.useState(_tmCache);
   React.useEffect(() => {
@@ -871,6 +1107,10 @@ const useTomatoMarket = () => {
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
         .then(j => {
           if (j && Array.isArray(j.daily) && j.daily.length) {
+            // Rebuild stale aggregations from the fresh daily array.
+            j.weekly  = _aggregateDaily(j.daily, r => _isoYearWeek(r.date));
+            j.monthly = _aggregateDaily(j.daily, r => r.date.slice(0, 7));
+            j.yearly  = _aggregateDaily(j.daily, r => r.date.slice(0, 4));
             _tmCache = j;
             for (const fn of _tmListeners) fn(j);
           }
@@ -881,6 +1121,35 @@ const useTomatoMarket = () => {
   }, []);
   return data;
 };
+
+// Disaster yearly — fetch the same JSON nongzhidao's FJ3.html uses.
+let _dsCache = (typeof window !== 'undefined' && window.DATASETS && window.DATASETS.disaster_yearly) || null;
+let _dsFetched = false;
+const _dsListeners = new Set();
+const useDisasterYearly = () => {
+  const [data, setData] = React.useState(_dsCache);
+  React.useEffect(() => {
+    _dsListeners.add(setData);
+    if (!_dsFetched) {
+      _dsFetched = true;
+      fetch('https://wyaoguang3-code.github.io/nongzhidao/data/tw_crop_disaster_yearly.json')
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(j => {
+          if (j && Array.isArray(j.yearly) && j.yearly.length) {
+            _dsCache = j;
+            for (const fn of _dsListeners) fn(j);
+          }
+        })
+        .catch(err => console.warn('[disaster_yearly] live fetch failed, using bundled:', err));
+    }
+    return () => { _dsListeners.delete(setData); };
+  }, []);
+  return data;
+};
+
+// Note: nongzhidao's code_FJ3_export.json is currently empty (no tomato rows).
+// We keep using the bundled tomato_export (parsed from agrstat ODS, richer schema)
+// until nongzhidao starts populating that endpoint.
 
 /* ── CARD 1: 價格面板 (AMIS) ────────────────────────────────────────────── */
 const PricePanelCard = () => {
@@ -1163,7 +1432,7 @@ const PriceBarsCard = () => {
 
 /* ── CARD 6: 每年農作物災損金額 ─────────────────────────────────────────── */
 const DisasterChartCard = () => {
-  const ds = window.DATASETS && window.DATASETS.disaster_yearly;
+  const ds = useDisasterYearly();
   const canvasRef = React.useRef(null);
   const chartRef  = React.useRef(null);
 
