@@ -713,17 +713,16 @@ const Page = ({selected, onSelect}) => {
                                '台東縣','花蓮縣','宜蘭縣','台北市'];
             const N = NEIGHBORS.length;
             const wrap = (i) => ((i % N) + N) % N;
-            // arrows + 加減號的 baked PNG 是「咖色 always active」狀態。
-            // size 是 overlay 渲染後的 design-units 寬高 — 直接量自 baked AVIF 後 reverse-engineer
-            // 出來 (圖內可見棕圓直徑 ÷ visible-radius-ratio × viewBox)，所以 overlay 跟 baked 對齊。
-            // Taoyuan baked: 下箭頭/+/-/像 d≈54-65；上箭頭是白圈+棕^（不同 style），這裡先用同尺寸。
+            // Arrows + 加減號 — 預設咖，hover 切換到綠（跟一般 hover 方向相反）。
+            // baked PNG 是咖色 always-active 風格、底圖已塗掉，所以 overlay 是唯一視覺。
+            // invertHover:true 讓 renderBtn 把預設/hover 顏色翻過來。
             const buttons = [
-              { key:'up',     baseKey:'上箭頭', cx:124.06, cy:971.74,  size:61.86, alwaysActive:true,
+              { key:'up',     baseKey:'上箭頭', cx:124.06, cy:971.74,  size:61.86, invertHover:true,
                 onClick: () => setCityScrollIdx(i => i - 1) },
-              { key:'down',   baseKey:'下箭頭', cx:124.06, cy:1404.88, size:61.86, alwaysActive:true,
+              { key:'down',   baseKey:'下箭頭', cx:124.06, cy:1404.88, size:61.86, invertHover:true,
                 onClick: () => setCityScrollIdx(i => i + 1) },
-              { key:'plus',   baseKey:'加號',   cx:1129.37, cy:1330.74, size:72.56, alwaysActive:true },
-              { key:'minus',  baseKey:'減號',   cx:1129.37, cy:1402.16, size:72.56, alwaysActive:true },
+              { key:'plus',   baseKey:'加號',   cx:1129.37, cy:1330.74, size:72.56, invertHover:true },
+              { key:'minus',  baseKey:'減號',   cx:1129.37, cy:1402.16, size:72.56, invertHover:true },
             ];
             // city pills — rect at (x, y, 156.89×53.58), icon viewBox (159.67×56.36) with 1.39 padding
             // 5 個固定 slot；slot 3 永遠是 桃園市，其它依 cityScrollIdx 從 NEIGHBORS cyclic 取
@@ -742,7 +741,11 @@ const Page = ({selected, onSelect}) => {
               alwaysActive: name === '桃園市',
             }));
             const renderBtn = (b) => {
-              const isActive = b.alwaysActive || hoveredBtn === b.key;
+              const hovered = hoveredBtn === b.key;
+              // invertHover: default 咖, hover 綠 (used for arrows + +/-)
+              // alwaysActive: always 咖 (no hover swap, used for 桃園 selected pill)
+              // default:     default 綠, hover 咖 (used for unselected city pills)
+              const isActive = b.invertHover ? !hovered : (b.alwaysActive || hovered);
               const svgKey = `${b.baseKey}${isActive ? '咖' : '綠'}`;
               const svg = window.BUTTON_SVGS?.[svgKey];
               if (!svg) return null;
@@ -1027,15 +1030,15 @@ const Page = ({selected, onSelect}) => {
         // looks like the buttons are "off". Sizes pinned to baked-measured value.
         const ARROW_SIZE = 28.1;   // viewBox 50.18, visible r=22.32 → 12.5/22.32*50.18 ≈ 28.1
         const PM_SIZE    = 27.77;  // viewBox 55.63, visible r=25.04 → 12.5/25.04*55.63 ≈ 27.77
-        // baked PNG 把箭頭與 +/- 都畫成 always-active 咖色 — overlay 也設 alwaysActive
-        // 才不會出現綠色 overlay 跟咖色 baked 不重疊的「微偏移」視覺問題。
+        // 預設咖色，hover 切換到綠色 (baked 已塗掉、overlay 是唯一視覺；invertHover:true
+        // 讓 renderIcon 把預設/hover 顏色翻過來)。
         const buttons = [
-          { key:'main_up',    baseKey:'上箭頭', cx:102.2, cy:625.8, size:ARROW_SIZE, alwaysActive:true,
+          { key:'main_up',    baseKey:'上箭頭', cx:102.2, cy:625.8, size:ARROW_SIZE, invertHover:true,
             onClick: () => setCityScrollIdx(i => i - 1) },
-          { key:'main_down',  baseKey:'下箭頭', cx:102.2, cy:865.8, size:ARROW_SIZE, alwaysActive:true,
+          { key:'main_down',  baseKey:'下箭頭', cx:102.2, cy:865.8, size:ARROW_SIZE, invertHover:true,
             onClick: () => setCityScrollIdx(i => i + 1) },
-          { key:'main_plus',  baseKey:'加號',   cx:659.8, cy:825.8, size:PM_SIZE,   alwaysActive:true },
-          { key:'main_minus', baseKey:'減號',   cx:659.8, cy:865.8, size:PM_SIZE,   alwaysActive:true },
+          { key:'main_plus',  baseKey:'加號',   cx:659.8, cy:825.8, size:PM_SIZE,   invertHover:true },
+          { key:'main_minus', baseKey:'減號',   cx:659.8, cy:865.8, size:PM_SIZE,   invertHover:true },
         ];
         // Pill icon size: rect 81.5 design wide, but pill SVG has 1.39 padding inside viewBox 159.67.
         const PILL_W = 159.67 * (81.5 / 156.89);  // 82.93
@@ -1051,7 +1054,8 @@ const Page = ({selected, onSelect}) => {
           NEIGHBORS[wrap(cityScrollIdx + 3)],
         ];
         const renderIcon = (b) => {
-          const isActive = b.alwaysActive || hoveredBtn === b.key;
+          const hovered = hoveredBtn === b.key;
+          const isActive = b.invertHover ? !hovered : (b.alwaysActive || hovered);
           const svgKey = `${b.baseKey}${isActive ? '咖' : '綠'}`;
           const svg = window.BUTTON_SVGS?.[svgKey];
           if (!svg) return null;
