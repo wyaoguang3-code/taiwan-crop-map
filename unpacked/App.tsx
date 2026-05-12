@@ -534,8 +534,12 @@ const Page = ({selected, onSelect}) => {
   const region = REGIONS_DATA[selected] || REGIONS_DATA.taoyuan;
   const wx = useLiveWeather(selected);
   const [hovered, setHovered] = React.useState(null);
+  // 左側 map 切換：'main' = 台灣全圖、'taoyuan' = 桃園鄉鎮 detail
+  const [leftMapView, setLeftMapView] = React.useState('main');
 
   const W = 1440, H = 2996;
+  // 左側 map area 在 design canvas 上的位置（Rectangle 4 from Figma）
+  const MAP_X = 34, MAP_Y = 87, MAP_W = 665, MAP_H = 830;
 
   return (
     <div style={{
@@ -559,8 +563,45 @@ const Page = ({selected, onSelect}) => {
         }}
       />
 
-      {/* 縣市 polygon overlay：滑過任一縣市 → 填上桃園色 + 顯示對應角色 */}
-      <svg
+      {/* 桃園鄉鎮 detail overlay — leftMapView==='taoyuan' 時顯示，蓋住整個左側 Taiwan map area */}
+      {leftMapView === 'taoyuan' && (
+        <div style={{
+          position:'absolute',
+          left:  `${MAP_X / W * 100}%`,
+          top:   `${MAP_Y / H * 100}%`,
+          width: `${MAP_W / W * 100}%`,
+          height:`${MAP_H / H * 100}%`,
+          zIndex: 10,
+        }}>
+          <img
+            src={(window.DESIGN_IMGS && window.DESIGN_IMGS.taoyuan_detail) || ''}
+            alt="桃園市鄉鎮詳細地圖"
+            style={{
+              position:'absolute', inset:0,
+              width:'100%', height:'100%',
+              display:'block', objectFit:'fill',
+              userSelect:'none', pointerEvents:'none',
+            }}
+          />
+          {/* 「回上一頁」click hotspot — 對應 detail design (1201×1500) 上的 button 位置 (50, 25, 130×45) */}
+          <div
+            onClick={() => setLeftMapView('main')}
+            title="回上一頁"
+            style={{
+              position:'absolute',
+              left:  `${50/1201*100}%`,
+              top:   `${25/1500*100}%`,
+              width: `${130/1201*100}%`,
+              height:`${45/1500*100}%`,
+              cursor:'pointer',
+              zIndex: 11,
+            }}
+          />
+        </div>
+      )}
+
+      {/* 縣市 polygon overlay：滑過任一縣市 → 填上桃園色 + 顯示對應角色（detail mode 不顯示） */}
+      {leftMapView === 'main' && <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
         style={{position:'absolute', inset:0, width:'100%', height:'100%'}}
@@ -591,8 +632,11 @@ const Page = ({selected, onSelect}) => {
               onMouseEnter={c.isBase ? undefined : () => setHovered(c.id)}
               onMouseLeave={c.isBase ? undefined : () => setHovered(null)}
               onClick={c.isBase ? undefined : () => {
-                // 點桃園市 polygon → 切到桃園 detail / 蕃茄 dashboard
-                if (c.id === TAOYUAN_POLYGON_ID) onSelect('taoyuan');
+                // 點桃園市 polygon → 左側 map 切到桃園鄉鎮 detail（右側資訊不變）
+                if (c.id === TAOYUAN_POLYGON_ID) {
+                  setLeftMapView('taoyuan');
+                  setHovered(null);
+                }
               }}
             />
           </svg>
@@ -673,7 +717,7 @@ const Page = ({selected, onSelect}) => {
             </g>
           );
         })()}
-      </svg>
+      </svg>}
 
       {/* Animated mascot video — replaces the 3-mascot still in the middle.
           Full-width white panel (covers the entire row in the background image)
@@ -1391,10 +1435,8 @@ const App = () => {
   const handleSelect = (id) => {
     setSelected(id);
     localStorage.setItem('tw-map-sel', id);
-    // Tomato click on the map → open the dashboard view.
-    if (id === 'taoyuan') {
-      window.location.hash = 'dashboard';
-    }
+    // 點 桃園 polygon 改成 Page 內部 setLeftMapView，不再跳 dashboard。
+    // Dashboard 仍可由 hash #dashboard 進入（未來在 dashboard 內加 link 到 #taoyuan-detail）
   };
 
   // Sync view with URL hash so browser back/forward works and the URL is shareable.
