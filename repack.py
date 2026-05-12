@@ -136,33 +136,55 @@ if not babel_re.search(inner_html):
     raise SystemExit("babel script not found inside template")
 new_inner = inner_html
 
-# Inject (or replace) the per-region images script right before the babel script.
-# NB: DOMParser silently truncates very large inline scripts (~2 MB tested),
-# so each window.* assignment lives in its own <script> tag rather than one big
-# concatenated body.
+# Externalize the big data blobs to keep the initial HTML small.
+# - DATASETS (~620 KB), COUNTY_CHARS (~120 KB), BUTTON_SVGS (~163 KB),
+#   TAOYUAN_CROPS (~73 KB) go into assets/page-data.json (~960 KB), fetched
+#   in parallel after HTML parse. Components subscribe to a 'page-data-ready'
+#   custom event to re-render once data lands.
+# - tomato_market.daily is trimmed to the last 365 days for the bundled
+#   fallback — the live nongzhidao fetch (in useTomatoMarket) provides the
+#   full 20-year history when online.
+# - DESIGN_IMGS stays inline (just 3 short URLs).
+# - Chart.js becomes an external file that the Dashboard component loads on
+#   demand via dynamic <script> injection. Frontpage doesn't need it.
+import copy
+trimmed_datasets = copy.deepcopy(datasets)
+if 'tomato_market' in trimmed_datasets:
+    tm = trimmed_datasets['tomato_market']
+    if isinstance(tm, dict) and isinstance(tm.get('daily'), list):
+        tm['daily'] = tm['daily'][-365:]
+page_data = {
+    'datasets':       trimmed_datasets,
+    'county_chars':   county_chars,
+    'button_svgs':    button_svgs,
+    'taoyuan_crops':  taoyuan_crops,
+}
+(ASSETS / "page-data.json").write_text(
+    json.dumps(page_data, ensure_ascii=False, separators=(',', ':')),
+    encoding="utf-8",
+)
+# Chart.js — copy to assets for on-demand loading by Dashboard
+(ASSETS / "chart.umd.min.js").write_bytes((UNPACKED / "chart.umd.min.js").read_bytes())
+
 regions_script = (
-    '<script>window.RIGHT_PANEL_IMGS='
-    + json.dumps(regions, ensure_ascii=False)
-    + ';</script>'
-    + '<script>window.DESIGN_IMGS='
+    '<script>window.DESIGN_IMGS='
     + json.dumps(design_imgs, ensure_ascii=False)
     + ';</script>'
-    + '<script>window.COUNTY_CHARS='
-    + json.dumps(county_chars, ensure_ascii=False)
-    + ';</script>'
-    + '<script>window.DATASETS='
-    + json.dumps(datasets, ensure_ascii=False)
-    + ';</script>'
-    + '<script>window.BUTTON_SVGS='
-    + json.dumps(button_svgs, ensure_ascii=False)
-    + ';</script>'
-    + '<script>window.TAOYUAN_CROPS='
-    + json.dumps(taoyuan_crops, ensure_ascii=False)
-    + ';</script>'
-    # Chart.js bundled inline — CDN fetch was adding 6+ seconds to window.load.
-    # Local copy at unpacked/chart.umd.min.js (200 KB). The marker comment
-    # delimits this block so re-runs of repack.py can strip + replace it.
-    + '<script data-bundled="chart.js">' + (UNPACKED / "chart.umd.min.js").read_text(encoding="utf-8") + '</script>'
+    # Bootloader — empty globals so synchronous reads don't throw, then fetch
+    # the heavy data in parallel and fire 'page-data-ready' when it lands.
+    + "<script>"
+      "window.DATASETS=window.DATASETS||{};"
+      "window.COUNTY_CHARS=window.COUNTY_CHARS||{};"
+      "window.BUTTON_SVGS=window.BUTTON_SVGS||{};"
+      "window.TAOYUAN_CROPS=window.TAOYUAN_CROPS||{};"
+      "fetch('assets/page-data.json').then(r=>r.json()).then(d=>{"
+        "window.DATASETS=d.datasets||{};"
+        "window.COUNTY_CHARS=d.county_chars||{};"
+        "window.BUTTON_SVGS=d.button_svgs||{};"
+        "window.TAOYUAN_CROPS=d.taoyuan_crops||{};"
+        "window.dispatchEvent(new CustomEvent('page-data-ready'));"
+      "}).catch(e=>console.warn('[page-data] fetch failed',e));"
+    "</script>"
 )
 # Remove any previously-injected version so re-runs stay idempotent. Match
 # every consecutive injected <script>…</script> regardless of how it was split.

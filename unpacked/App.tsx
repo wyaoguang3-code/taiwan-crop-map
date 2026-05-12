@@ -1,6 +1,65 @@
 
 const { useState } = React;
 
+/* ── async resources ─────────────────────────────────────────────────────────
+ * The big data blobs (window.DATASETS / COUNTY_CHARS / BUTTON_SVGS /
+ * TAOYUAN_CROPS) used to be inlined into the HTML (~970 KB). Now repack.py
+ * writes them to assets/page-data.json and a bootloader script in index.html
+ * fetches it in parallel, dispatching 'page-data-ready' when the assignment
+ * is done. Components that read these globals subscribe via usePageDataReady
+ * so they re-render once the fetch completes.
+ */
+let _pageDataReady = !!(typeof window !== 'undefined' && window.COUNTY_CHARS && Object.keys(window.COUNTY_CHARS).length > 0);
+const _pageDataListeners = new Set();
+if (typeof window !== 'undefined') {
+  window.addEventListener('page-data-ready', () => {
+    _pageDataReady = true;
+    for (const fn of _pageDataListeners) fn(Date.now());
+  });
+}
+const usePageDataReady = () => {
+  const [, force] = React.useState(_pageDataReady ? 1 : 0);
+  React.useEffect(() => {
+    if (_pageDataReady) { force(x => x + 1); return; }
+    const fn = () => force(x => x + 1);
+    _pageDataListeners.add(fn);
+    return () => { _pageDataListeners.delete(fn); };
+  }, []);
+  return _pageDataReady;
+};
+
+/* ── Chart.js lazy loader ────────────────────────────────────────────────────
+ * Chart.js is ~200 KB and is only needed on the /dashboard route. We injected
+ * it inline before, which forced every visitor to download it whether they
+ * navigated to the dashboard or not. Now we load it on demand via a dynamic
+ * <script> tag the first time a chart component mounts.
+ */
+let _chartPromise = null;
+const ensureChart = () => {
+  if (typeof window === 'undefined') return Promise.reject();
+  if (window.Chart) return Promise.resolve(window.Chart);
+  if (_chartPromise) return _chartPromise;
+  _chartPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'assets/chart.umd.min.js';
+    s.async = true;
+    s.onload  = () => resolve(window.Chart);
+    s.onerror = (e) => reject(e);
+    document.head.appendChild(s);
+  });
+  return _chartPromise;
+};
+const useChart = () => {
+  const [ok, setOk] = React.useState(!!(typeof window !== 'undefined' && window.Chart));
+  React.useEffect(() => {
+    if (ok) return;
+    let cancelled = false;
+    ensureChart().then(() => { if (!cancelled) setOk(true); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [ok]);
+  return ok;
+};
+
 /* ── REGION DATA ─────────────────────────────────────────────────────────────
  * Each county has its own coords (for Open-Meteo weather), the crop the design
  * features for that county (used to query the wholesale-price API), and an
@@ -554,6 +613,10 @@ const COUNTY_NAMES = {
  * they show live values from Open-Meteo + 農業部交易行情 APIs.
  */
 const Page = ({selected, onSelect}) => {
+  // Subscribe to async page-data load so we re-render once COUNTY_CHARS /
+  // BUTTON_SVGS / TAOYUAN_CROPS land. Before that, hover overlays render as
+  // empty (existing `?.` chains already handle missing keys gracefully).
+  usePageDataReady();
   const region = REGIONS_DATA[selected] || REGIONS_DATA.taoyuan;
   const wx = useLiveWeather(selected);
   const [hovered, setHovered] = React.useState(null);
@@ -1096,8 +1159,20 @@ const _aggregateDaily = (daily, keyFn) => {
 };
 
 const useTomatoMarket = () => {
-  const [data, setData] = React.useState(_tmCache);
+  // Initialise from window.DATASETS at every call — the bootloader fetches it
+  // async, so the very first render gets an empty object.
+  const [data, setData] = React.useState(() =>
+    _tmCache ||
+    (typeof window !== 'undefined' && window.DATASETS && window.DATASETS.tomato_market) ||
+    null
+  );
+  usePageDataReady();   // re-render when the page-data fetch lands
   React.useEffect(() => {
+    // If the bundled fallback only just became available, pick it up.
+    if (!_tmCache && typeof window !== 'undefined' && window.DATASETS && window.DATASETS.tomato_market) {
+      _tmCache = window.DATASETS.tomato_market;
+      setData(_tmCache);
+    }
     _tmListeners.add(setData);
     if (!_tmFetched) {
       _tmFetched = true;
@@ -1127,8 +1202,17 @@ let _dsCache = (typeof window !== 'undefined' && window.DATASETS && window.DATAS
 let _dsFetched = false;
 const _dsListeners = new Set();
 const useDisasterYearly = () => {
-  const [data, setData] = React.useState(_dsCache);
+  const [data, setData] = React.useState(() =>
+    _dsCache ||
+    (typeof window !== 'undefined' && window.DATASETS && window.DATASETS.disaster_yearly) ||
+    null
+  );
+  usePageDataReady();
   React.useEffect(() => {
+    if (!_dsCache && typeof window !== 'undefined' && window.DATASETS && window.DATASETS.disaster_yearly) {
+      _dsCache = window.DATASETS.disaster_yearly;
+      setData(_dsCache);
+    }
     _dsListeners.add(setData);
     if (!_dsFetched) {
       _dsFetched = true;
@@ -1234,12 +1318,13 @@ const PricePanelCard = () => {
 /* ── CARD 2: 批發市場行情趨勢圖 (toggle 每週/每月/一年/每年) ──────────── */
 const TrendChartCard = () => {
   const m = useTomatoMarket();
+  const chartReady = useChart();
   const [period, setPeriod] = useState('weekly');
   const canvasRef = React.useRef(null);
   const chartRef  = React.useRef(null);
 
   React.useEffect(() => {
-    if (!m || !window.Chart || !canvasRef.current) return;
+    if (!m || !chartReady || !window.Chart || !canvasRef.current) return;
     // '一年' = last 52 weeks of weekly series; '每週' = full weekly series
     let entries, priceLabel;
     if (period === 'weekly')      { entries = m.weekly;  priceLabel = '每週均價 (NTD/公斤)'; }
@@ -1277,7 +1362,7 @@ const TrendChartCard = () => {
       },
     });
     return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-  }, [m, period]);
+  }, [m, period, chartReady]);
 
   return (
     <div style={{
@@ -1319,11 +1404,12 @@ const TrendChartCard = () => {
 /* ── CARD 3: 批發市場成交量比較 ─────────────────────────────────────────── */
 const VolumeBarsCard = () => {
   const m = useTomatoMarket();
+  const chartReady = useChart();
   const canvasRef = React.useRef(null);
   const chartRef  = React.useRef(null);
 
   React.useEffect(() => {
-    if (!m || !window.Chart || !canvasRef.current) return;
+    if (!m || !chartReady || !window.Chart || !canvasRef.current) return;
     const list = (m.market_compare?.markets_volume) || [];
     const labels = list.map(x => x.market);
     const vols   = list.map(x => Math.round(x.volume));
@@ -1345,7 +1431,7 @@ const VolumeBarsCard = () => {
       },
     });
     return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-  }, [m]);
+  }, [m, chartReady]);
 
   return (
     <div style={{
@@ -1376,11 +1462,12 @@ const VolumeBarsCard = () => {
 /* ── CARD 4: 批發市場價格比較 ───────────────────────────────────────────── */
 const PriceBarsCard = () => {
   const m = useTomatoMarket();
+  const chartReady = useChart();
   const canvasRef = React.useRef(null);
   const chartRef  = React.useRef(null);
 
   React.useEffect(() => {
-    if (!m || !window.Chart || !canvasRef.current) return;
+    if (!m || !chartReady || !window.Chart || !canvasRef.current) return;
     const list = (m.market_compare?.markets_price) || [];
     const labels = list.map(x => x.market);
     const prices = list.map(x => Math.round(x.price * 10) / 10);
@@ -1402,7 +1489,7 @@ const PriceBarsCard = () => {
       },
     });
     return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-  }, [m]);
+  }, [m, chartReady]);
 
   return (
     <div style={{
@@ -1433,11 +1520,12 @@ const PriceBarsCard = () => {
 /* ── CARD 6: 每年農作物災損金額 ─────────────────────────────────────────── */
 const DisasterChartCard = () => {
   const ds = useDisasterYearly();
+  const chartReady = useChart();
   const canvasRef = React.useRef(null);
   const chartRef  = React.useRef(null);
 
   React.useEffect(() => {
-    if (!ds || !window.Chart || !canvasRef.current) return;
+    if (!ds || !chartReady || !window.Chart || !canvasRef.current) return;
     const rows = ds.yearly || [];
     const labels = rows.map(r => r.year);
     const losses = rows.map(r => r.loss_100m_ntd);
@@ -1472,7 +1560,7 @@ const DisasterChartCard = () => {
       },
     });
     return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-  }, [ds]);
+  }, [ds, chartReady]);
 
   // Card position: x=726-1407, y=842-1287 (mirrors export-trend's mid-bottom row).
   return (
@@ -1509,14 +1597,16 @@ const DisasterChartCard = () => {
 const COUNTRY_OPTIONS = ['全球','APEC','CPTPP(12)','CPTPP','東協六國','歐盟','新南向國家','TPP','區域全面經濟夥伴關係協定'];
 
 const ExportTrendChart = () => {
-  const data = window.DATASETS && window.DATASETS.tomato_export;
+  usePageDataReady();
+  const chartReady = useChart();
+  const data = (typeof window !== 'undefined' && window.DATASETS) ? window.DATASETS.tomato_export : null;
   const [country, setCountry] = useState('全球');
   const [period, setPeriod] = useState('yearly');
   const canvasRef = React.useRef(null);
   const chartRef = React.useRef(null);
 
   React.useEffect(() => {
-    if (!data || !window.Chart || !canvasRef.current) return;
+    if (!data || !chartReady || !window.Chart || !canvasRef.current) return;
     const cd = data.data[country];
     if (!cd) return;
     const series = period === 'yearly' ? cd.yearly : cd.monthly;
@@ -1604,10 +1694,10 @@ const ExportTrendChart = () => {
       },
     });
     return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-  }, [country, period, data]);
+  }, [country, period, data, chartReady]);
 
   if (!data) {
-    return <div style={{padding:20,color:'#888',fontSize:12}}>資料未載入</div>;
+    return <div style={{padding:20,color:'#888',fontSize:12}}>外銷資料載入中…</div>;
   }
 
   // Two-layer nested layout matching the design:
