@@ -74,6 +74,47 @@ design_imgs = {}
 # <source>, so both files end up downloaded (worse than not bothering). For
 # the very small Safari < 16.4 audience the React UI still renders — they
 # just see no design background.
+
+# Buttons baked into the design PNGs cause subtle misalignment when our SVG
+# overlay sits on top — slightly different anti-aliasing / dimensions show
+# through as a doubled-edge effect (visible especially on mobile). The user's
+# original design has empty background under both regions, so we paint over
+# the baked button regions with the surrounding background color before
+# encoding. The React overlay then becomes the sole visual.
+# Rects are in DESIGN units (source PNG is 2× this).
+_BTN_PAINT_RECTS = {
+    # (left, top, right, bottom) — pill column + arrows on the left, +/- on the right.
+    "full_page":      [(48, 605, 158, 882),  (640, 808, 680, 884)],
+    "taoyuan_detail": [(35, 1255, 285, 1905), (1465, 1735, 1545, 1905)],
+}
+
+def _paint_buttons(im, name, design_w):
+    """Paint over the baked button regions with the surrounding bg colour."""
+    if name not in _BTN_PAINT_RECTS:
+        return im
+    rects = _BTN_PAINT_RECTS[name]
+    if not rects:
+        return im
+    im = im.convert("RGBA") if im.mode == "RGBA" else im.convert("RGB")
+    px_per_design = im.size[0] / design_w
+    from PIL import ImageDraw as _ImageDraw
+    draw = _ImageDraw.Draw(im)
+    for left, top, right, bottom in rects:
+        # Sample bg colour just outside the rect (left edge − 4 design units).
+        sx = max(0, int((left - 4) * px_per_design))
+        sy = int(((top + bottom) / 2) * px_per_design)
+        bg = im.getpixel((sx, sy))
+        # Paint the rect with the sampled colour. Coordinates in pixels.
+        draw.rectangle(
+            (int(left * px_per_design), int(top * px_per_design),
+             int(right * px_per_design), int(bottom * px_per_design)),
+            fill=bg,
+        )
+    return im
+
+# Source design canvas widths (the PNGs are exactly 2× these).
+_DESIGN_W = {"full_page": 1440, "tomato_dashboard": 1440, "taoyuan_detail": 1601}
+
 for name, src_ext, q in [
     ("full_page",        "jpg", 70),
     ("tomato_dashboard", "jpg", 70),
@@ -83,17 +124,19 @@ for name, src_ext, q in [
     if not src.exists() or _Image is None:
         continue
     im = _Image.open(src)
+    im = _paint_buttons(im, name, _DESIGN_W[name])
     W, H = im.size
     small = im.resize((int(W * SCALE), int(H * SCALE)), _Image.LANCZOS)
     if _HAS_AVIF:
         dst = ASSETS / f"{name}.avif"
-        small.save(dst, "AVIF", quality=q)
+        # AVIF doesn't support RGBA → convert if needed
+        small_to_save = small.convert("RGB") if small.mode == "RGBA" else small
+        small_to_save.save(dst, "AVIF", quality=q)
     else:
-        # Pillow without AVIF plugin → fall back to WebP so build still works.
         dst = ASSETS / f"{name}.webp"
         small.save(dst, "WEBP", quality=q)
     design_imgs[name] = f"assets/{dst.name}"
-print(f"Design assets ({'avif' if _HAS_AVIF else 'webp'}, 1.5x, q={q}): {list(design_imgs.keys())}")
+print(f"Design assets ({'avif' if _HAS_AVIF else 'webp'}, 1.5x, q={q}, btn-painted): {list(design_imgs.keys())}")
 
 # Bundle per-county character SVGs (hover-to-show on the map).
 # Files at unpacked/county_chars/<key>.svg are loaded by key.
