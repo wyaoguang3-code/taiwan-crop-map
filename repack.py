@@ -41,6 +41,17 @@ for name in ("full_page", "tomato_dashboard"):
     design_imgs[name] = f"data:image/jpeg;base64,{data}"
 print(f"Design assets bundled: {list(design_imgs.keys())}")
 
+# Bundle per-county character SVGs (hover-to-show on the map).
+# Files at unpacked/county_chars/<key>.svg are loaded by key.
+county_chars = {}
+char_dir = UNPACKED / "county_chars"
+if char_dir.exists():
+    for p in sorted(char_dir.glob("*.svg")):
+        key = p.stem
+        data = base64.b64encode(p.read_bytes()).decode("ascii")
+        county_chars[key] = f"data:image/svg+xml;base64,{data}"
+    print(f"County characters bundled: {len(county_chars)} keys")
+
 # Bundle dashboard datasets (parsed from agrstat.moa.gov.tw ODS exports).
 datasets = {}
 for name in ("tomato_export", "tomato_market", "disaster_yearly"):
@@ -87,6 +98,9 @@ regions_script = (
     + '<script>window.DESIGN_IMGS='
     + json.dumps(design_imgs, ensure_ascii=False)
     + ';</script>'
+    + '<script>window.COUNTY_CHARS='
+    + json.dumps(county_chars, ensure_ascii=False)
+    + ';</script>'
     + '<script>window.DATASETS='
     + json.dumps(datasets, ensure_ascii=False)
     + ';</script>'
@@ -96,7 +110,7 @@ regions_script = (
 # Remove any previously-injected version so re-runs stay idempotent. Match
 # every consecutive injected <script>…</script> regardless of how it was split.
 new_inner = re.sub(
-    r'(?:<script(?:\s[^>]*)?>window\.(?:RIGHT_PANEL_IMGS|DESIGN_IMGS|DATASETS)=.*?</script>)+'
+    r'(?:<script(?:\s[^>]*)?>window\.(?:RIGHT_PANEL_IMGS|DESIGN_IMGS|COUNTY_CHARS|DATASETS)=.*?</script>)+'
     r'(?:<script src="[^"]*chart[^"]*"></script>)?',
     '',
     new_inner,

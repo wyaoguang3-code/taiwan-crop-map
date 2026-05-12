@@ -464,6 +464,44 @@ const TW_COUNTIES = [
 const HOVER_FILL = '#f5a78a';
 const TAOYUAN_BASE_FILL = '#f5a78a';
 
+/* ── COUNTY → CHARACTER SVG MAPPING ────────────────────────────────────────
+ * 17 個 polygon node id → 角色 SVG key（base64 編進 window.COUNTY_CHARS）。
+ * 編號順序（a-q）對應 polygon order TW_COUNTIES[1..17]（index 0 是 isBase=true）。
+ * Hover 時把 SVG 顯示在該 polygon 中心上方。
+ * 額外 2 個 polygon 外 hotspot（新竹市、嘉義市 — design polygon 沒拆出）
+ * 用 fixed canvas position 做小 hotspot 觸發。
+ */
+const COUNTY_CHAR_MAP = {
+  '51_5083': 'a_newtaipei',        // a 新北市
+  '51_5084': 'b_taoyuan',          // b 桃園市
+  '51_5085': 'c_taitung',          // c 台東縣
+  '51_5086': 'd_hualien',          // d 花蓮縣
+  '51_5087': 'e_kaohsiung',        // e 高雄市
+  '51_5088': 'f_pingtung',         // f 屏東縣
+  '51_5089': 'g_taichung',         // g 台中市
+  '51_5090': 'h_yilan',            // h 宜蘭縣
+  '51_5091': 'i_chiayi_county',    // i 嘉義縣
+  '51_5092': 'j_tainan',           // j 台南市
+  '51_5093': 'k_miaoli',           // k 苗栗縣
+  '51_5094': 'l_yunlin',           // l 雲林縣
+  '51_5095': 'm_changhua',         // m 彰化縣
+  '51_5096': 'n_hsinchu_county',   // n 新竹縣
+  '51_5099': 'o_nantou',           // o 南投縣
+  '51_5100': 'p_taipei',           // p 台北市
+  '51_5101': 'q_keelung',          // q 基隆市
+};
+
+// design polygon 沒拆出的縣市 — 用 fixed hotspot（design canvas 1440×2996 座標）
+// 新竹市在新竹縣中間、嘉義市在嘉義縣中間（憑地理估的位置）
+const EXTRA_CITY_HOTSPOTS = [
+  { id: 'extra_hsinchu_city', cx: 477, cy: 278, r: 22 }, // 在 n_hsinchu_county 區內
+  { id: 'extra_chiayi_city',  cx: 327, cy: 551, r: 22 }, // 在 i_chiayi_county 區內
+];
+
+// 角色顯示尺寸 — 在 design canvas 上的寬高
+const CHAR_DISPLAY_W = 220;
+const CHAR_DISPLAY_H = 220;
+
 /* ── PAGE ───────────────────────────────────────────────────────────────────
  * The whole page is rendered as one design PNG (full_page.jpg, 1440×2996),
  * with a transparent SVG over the map for click hotspots and 2 absolutely-
@@ -499,7 +537,7 @@ const Page = ({selected, onSelect}) => {
         }}
       />
 
-      {/* 縣市 polygon overlay：滑過任一縣市 → 填上桃園色，視覺呼應背景 */}
+      {/* 縣市 polygon overlay：滑過任一縣市 → 填上桃園色 + 顯示對應角色 */}
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
@@ -535,6 +573,19 @@ const Page = ({selected, onSelect}) => {
             />
           </svg>
         ))}
+
+        {/* 新竹市 / 嘉義市 extra hotspot — design polygon 沒拆出，用 fixed circle 觸發 */}
+        {EXTRA_CITY_HOTSPOTS.map(h => (
+          <circle
+            key={h.id}
+            cx={h.cx} cy={h.cy} r={h.r}
+            fill="transparent"
+            style={{cursor:'pointer'}}
+            onMouseEnter={() => setHovered(h.id)}
+            onMouseLeave={() => setHovered(null)}
+          />
+        ))}
+
         {/* 原本的 TOMATO_HOTSPOT click 區保留 — 角色身上仍可點 */}
         <circle
           cx={TOMATO_HOTSPOT.cx} cy={TOMATO_HOTSPOT.cy} r={TOMATO_HOTSPOT.r}
@@ -542,6 +593,43 @@ const Page = ({selected, onSelect}) => {
           style={{cursor:'pointer'}}
           onClick={() => onSelect(TOMATO_HOTSPOT.id)}
         />
+
+        {/* Hovered 角色：渲染在 polygon 中心上方 — 用 SVG <image> 把角色 SVG 浮現 */}
+        {hovered && (() => {
+          // 找對應的 SVG key 跟中心座標
+          const charsLib = (typeof window !== 'undefined' && window.COUNTY_CHARS) || {};
+          let charKey = COUNTY_CHAR_MAP[hovered];
+          let centerX, centerY;
+          if (charKey) {
+            // 從 TW_COUNTIES 找對應 polygon 中心
+            const poly = TW_COUNTIES.find(c => c.id === hovered);
+            if (!poly) return null;
+            centerX = poly.cx + poly.cw / 2;
+            centerY = poly.cy + poly.ch / 2;
+          } else {
+            // 從 EXTRA_CITY_HOTSPOTS 找
+            const eh = EXTRA_CITY_HOTSPOTS.find(h => h.id === hovered);
+            if (!eh) return null;
+            charKey = eh.id;
+            centerX = eh.cx;
+            centerY = eh.cy;
+          }
+          const src = charsLib[charKey];
+          if (!src) return null;
+          // 角色置於 polygon 中心上方（向上偏移，讓角色「站」在 polygon 上）
+          const w = CHAR_DISPLAY_W, h = CHAR_DISPLAY_H;
+          return (
+            <image
+              href={src}
+              x={centerX - w/2}
+              y={centerY - h*0.85}
+              width={w}
+              height={h}
+              preserveAspectRatio="xMidYMid meet"
+              style={{pointerEvents: 'none'}}
+            />
+          );
+        })()}
       </svg>
 
       {/* Animated mascot video — replaces the 3-mascot still in the middle.
