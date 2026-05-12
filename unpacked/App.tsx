@@ -621,6 +621,19 @@ const Page = ({selected, onSelect}) => {
             }}
           />
 
+          {/* 上箭頭棕色填充圓圈 overlay — 補回 user 在 Figma 不小心連同 group 一起 hide 掉的部分。
+              位置 (165, 1295) 在 detail design canvas 1601×2000、跟下箭頭視覺一致 */}
+          <svg
+            viewBox={`0 0 ${TAOYUAN_W} ${TAOYUAN_H}`}
+            preserveAspectRatio="none"
+            style={{position:'absolute', inset:0, width:'100%', height:'100%', zIndex:10, pointerEvents:'none'}}
+          >
+            <g transform="translate(165, 1295)">
+              <circle cx="0" cy="0" r="32" fill="#8E6040"/>
+              <path d="M -12 7 L 0 -8 L 12 7" stroke="white" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+            </g>
+          </svg>
+
           {/* 13 個鄉鎮 polygon overlay：hover 變色 + 作物名 badge */}
           <svg
             viewBox={`0 0 ${TAOYUAN_W} ${TAOYUAN_H}`}
