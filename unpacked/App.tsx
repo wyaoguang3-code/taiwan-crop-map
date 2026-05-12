@@ -1284,6 +1284,55 @@ const ExportTrendChart = () => {
  * uniformly-scaled wrapper so positioning and font sizes shrink as one unit
  * down to any viewport. Cards above remain unchanged.
  */
+/* ── TAOYUAN DETAIL PAGE ────────────────────────────────────────────────────
+ * 桃園市的鄉鎮地圖詳細頁，從 桃園地圖.ai 渲染而來。
+ * Phase 1：純底圖 + 「回上一頁」back button。
+ * Phase 2：每個鄉鎮 polygon 支援 hover 變色 + 角色浮現（待補）。
+ */
+const TaoyuanDetail = ({onBack}) => {
+  // AI 渲染的圖原始 size 是 2403×3000（design 1201.5×1500）
+  // 圖內已有「← 回上一頁」label，shape 大約在 design coord (62-176, 30-72) 範圍
+  // 用透明 click area 覆蓋該位置觸發 onBack
+  const W = 1201, H = 1500;  // design canvas
+  return (
+    <div style={{
+      position:'relative',
+      width:'min(1201px, 100%)',
+      aspectRatio: `${W} / ${H}`,
+      margin:'0 auto',
+      fontFamily:"'Noto Sans TC', sans-serif",
+      containerType: 'inline-size',
+      background: '#ffffff',
+    }}>
+      <img
+        src={(window.DESIGN_IMGS && window.DESIGN_IMGS.taoyuan_detail) || ''}
+        alt="桃園市鄉鎮詳細地圖"
+        style={{
+          position:'absolute', inset:0,
+          width:'100%', height:'100%',
+          display:'block',
+          userSelect:'none', pointerEvents:'none',
+        }}
+      />
+      {/* 「← 回上一頁」click hotspot — 對應 design 上的 button 位置 */}
+      <div
+        onClick={onBack}
+        title="回上一頁"
+        style={{
+          position:'absolute',
+          left: `${50/W*100}%`,
+          top:  `${25/H*100}%`,
+          width: `${130/W*100}%`,
+          height:`${45/H*100}%`,
+          cursor:'pointer',
+          zIndex: 5,
+        }}
+      />
+      {/* TODO Phase 2: 13 個鄉鎮 polygon overlay + hover 角色 SVG */}
+    </div>
+  );
+};
+
 const Dashboard = ({onBack}) => (
   <div style={{
     position:'relative',
@@ -1331,7 +1380,13 @@ const Dashboard = ({onBack}) => (
 /* ── MAIN APP ────────────────────────────────────────────────────────────── */
 const App = () => {
   const [selected, setSelected] = useState(()=>localStorage.getItem('tw-map-sel')||'taoyuan');
-  const [view, setView] = useState(() => window.location.hash === '#dashboard' ? 'dashboard' : 'main');
+  const computeView = () => {
+    const h = window.location.hash;
+    if (h === '#dashboard') return 'dashboard';
+    if (h === '#taoyuan-detail') return 'taoyuan-detail';
+    return 'main';
+  };
+  const [view, setView] = useState(computeView);
 
   const handleSelect = (id) => {
     setSelected(id);
@@ -1344,7 +1399,7 @@ const App = () => {
 
   // Sync view with URL hash so browser back/forward works and the URL is shareable.
   React.useEffect(() => {
-    const sync = () => setView(window.location.hash === '#dashboard' ? 'dashboard' : 'main');
+    const sync = () => setView(computeView());
     window.addEventListener('hashchange', sync);
     return () => window.removeEventListener('hashchange', sync);
   }, []);
@@ -1393,6 +1448,9 @@ const App = () => {
 
   if (view === 'dashboard') {
     return <Dashboard onBack={() => { window.location.hash = ''; }}/>;
+  }
+  if (view === 'taoyuan-detail') {
+    return <TaoyuanDetail onBack={() => { window.location.hash = 'dashboard'; }}/>;
   }
   return <Page selected={selected} onSelect={handleSelect}/>;
 };

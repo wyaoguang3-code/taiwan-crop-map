@@ -39,6 +39,13 @@ for name in ("full_page", "tomato_dashboard"):
         continue
     data = base64.b64encode(f.read_bytes()).decode("ascii")
     design_imgs[name] = f"data:image/jpeg;base64,{data}"
+# Bundle the 桃園 detail page background (rendered from 桃園地圖.ai)
+for name in ("taoyuan_detail",):
+    f = UNPACKED / f"{name}.png"
+    if not f.exists():
+        continue
+    data = base64.b64encode(f.read_bytes()).decode("ascii")
+    design_imgs[name] = f"data:image/png;base64,{data}"
 print(f"Design assets bundled: {list(design_imgs.keys())}")
 
 # Bundle per-county character SVGs (hover-to-show on the map).
