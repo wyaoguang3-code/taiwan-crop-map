@@ -502,6 +502,29 @@ const EXTRA_CITY_HOTSPOTS = [
 const CHAR_DISPLAY_W = 220;
 const CHAR_DISPLAY_H = 220;
 
+// 縣市中文名 — 供 hover 時顯示的「桃園市」style 名稱方框用
+const COUNTY_NAMES = {
+  '51_5083': '新北市',
+  '51_5084': '桃園市',
+  '51_5085': '台東縣',
+  '51_5086': '花蓮縣',
+  '51_5087': '高雄市',
+  '51_5088': '屏東縣',
+  '51_5089': '台中市',
+  '51_5090': '宜蘭縣',
+  '51_5091': '嘉義縣',
+  '51_5092': '台南市',
+  '51_5093': '苗栗縣',
+  '51_5094': '雲林縣',
+  '51_5095': '彰化縣',
+  '51_5096': '新竹縣',
+  '51_5099': '南投縣',
+  '51_5100': '台北市',
+  '51_5101': '基隆市',
+  'extra_hsinchu_city': '新竹市',
+  'extra_chiayi_city':  '嘉義市',
+};
+
 /* ── PAGE ───────────────────────────────────────────────────────────────────
  * The whole page is rendered as one design PNG (full_page.jpg, 1440×2996),
  * with a transparent SVG over the map for click hotspots and 2 absolutely-
@@ -615,19 +638,45 @@ const Page = ({selected, onSelect}) => {
             centerY = eh.cy;
           }
           const src = charsLib[charKey];
-          if (!src) return null;
           // 角色置於 polygon 中心上方（向上偏移，讓角色「站」在 polygon 上）
           const w = CHAR_DISPLAY_W, h = CHAR_DISPLAY_H;
+          // 縣市名稱方框 — 沿用桃園市 design：64×24, rounded 13, 米白底棕邊
+          // 放在角色頭頂正上方（角色頂端再向上 8px）
+          const name = COUNTY_NAMES[hovered];
+          const labelW = 88, labelH = 30;  // 比 design 稍大，相對 canvas 縮放後易讀
+          const labelX = centerX - labelW / 2;
+          const labelY = centerY - h * 0.85 - labelH - 6;
           return (
-            <image
-              href={src}
-              x={centerX - w/2}
-              y={centerY - h*0.85}
-              width={w}
-              height={h}
-              preserveAspectRatio="xMidYMid meet"
-              style={{pointerEvents: 'none'}}
-            />
+            <g style={{pointerEvents: 'none'}}>
+              {src && (
+                <image
+                  href={src}
+                  x={centerX - w/2}
+                  y={centerY - h*0.85}
+                  width={w}
+                  height={h}
+                  preserveAspectRatio="xMidYMid meet"
+                />
+              )}
+              {name && (
+                <g transform={`translate(${labelX}, ${labelY})`}>
+                  <rect
+                    width={labelW} height={labelH} rx={labelH/2}
+                    fill="#fbf6e9" stroke="#d1c4af" strokeWidth="1.5"
+                  />
+                  <text
+                    x={labelW/2} y={labelH/2 + 1}
+                    textAnchor="middle" dominantBaseline="middle"
+                    fill="#9b897c"
+                    fontSize="16"
+                    fontFamily="'Noto Sans TC', 'Noto Sans CJK TC', sans-serif"
+                    fontWeight="500"
+                  >
+                    {name}
+                  </text>
+                </g>
+              )}
+            </g>
           );
         })()}
       </svg>
